@@ -29,10 +29,13 @@ class PermissionMiddleware {
             $this->unauthorized();
         }
 
-        // 2. Bypass para Súper Administradores (es_admin = 1)
-        if ($session->isAdmin()) {
-            return;
-        }
+        // ============================================================
+        // RBAC REAL: Sin bypass hardcodeado (2026-02-23)
+        // ============================================================
+        // El Super Admin obtiene TODOS los permisos vía rol_permisos 
+        // (asignados por RbacSetupService), NO por bypass.
+        // Esto permite auditar cada acceso y crear admins con scope limitado.
+        // ============================================================
 
         // 3. Si no se define el permiso en la ruta y no es admin, bloqueamos por seguridad
         if (empty($permission)) {

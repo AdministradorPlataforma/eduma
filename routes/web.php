@@ -26,6 +26,13 @@ $router->post('login', [AuthController::class, 'login']);
 $router->get('logout', [AuthController::class, 'logout']);
 $router->get('captcha/image', [AuthController::class, 'captchaImage']);
 
+// ----------------------------------------------------------------------------
+// WEBHOOKS Y API PÚBLICAS (Sin auth de sesión — autenticación por token)
+// ----------------------------------------------------------------------------
+// Moodle NO tiene sesión PHP, por lo que el webhook debe estar fuera del
+// grupo 'auth'. La autenticación se realiza por token en el controller.
+$router->post('api/webhook/moodle', [MoodleWebhookController::class, 'handle']);
+
 // Recuperación de Contraseña
 $router->group(['prefix' => 'password'], function($r) {
     $r->get('forgot', [\App\Controllers\PasswordResetController::class, 'showLinkRequestForm']);
@@ -174,8 +181,7 @@ $router->group(['middleware' => 'auth'], function($r) {
             $r->get('orphan-courses', [MoodleController::class, 'orphanCourses']);
         });
 
-        // Webhooks (Exentos de CSRF en el Router Core si es necesario)
-        $r->post('api/webhook', [MoodleWebhookController::class, 'handle']);
+        // Webhook Moodle movido a sección pública (línea ~28)
     });
 
     // Gestión Académica y Tareas

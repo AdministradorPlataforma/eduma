@@ -47,48 +47,26 @@ abstract class BaseModel {
 
     /**
      * Retorna registros paginados.
+     * 
      * @param int $perPage Cantidad de registros por página
      * @param int $page Página actual
      * @return array Estructura ['data' => [], 'meta' => [...]]
      */
     public function paginate(int $perPage = 15, int $page = 1): array {
-        // 1. Contar total de registros
-        // Clonamos el builder porque count() y get() resetean el estado, 
-        // pero necesitamos los WHERES para el count.
-        // Nota: QueryBuilder actual resetea al ejecutar. 
-        // Idealmente deberíamos poder clonar o obtener el count sin resetear todo.
-        // Dado que QueryBuilder::count() resetea, necesitamos reconstruir o modificar QueryBuilder para no resetear en count
-        // O hacerlo manualmente.
-        
-        // Hack temporal: Asumimos que el QueryBuilder actual no tiene wheres complejos pendientes si llamamos directo a paginate
-        // Si se llama $model->where(...)->paginate(), esto fallaría con la implementación actual de QueryBuilder::reset().
-        // Por ahora, implementaremos una lógica básica que cuente todo si no hay filtros, 
-        // IMPORTANTE: Para que esto funcione bien con filtros ($model->where()->paginate()), 
-        // tendríamos que modificar QueryBuilder. 
-        
-        // Vamos a usar una consulta directa de count por ahora sobre la tabla.
-        
+        // Aplicar filtros de soft delete
         if ($this->useSoftDeletes && !$this->tempWithDeleted) {
             $this->builder->where($this->deletedField, 'IS', null);
         }
         if ($this->tempOnlyDeleted) {
             $this->builder->where($this->deletedField, 'IS NOT', null);
         }
-        $total = $this->builder->count(); // Esto resetea el builder
 
-        // 2. Calcular Offset
+        // ✅ QueryBuilder v2.0: count() ya NO resetea el estado,
+        //    por lo que las condiciones WHERE se preservan para get().
+        $total = $this->builder->count();
+
+        // Calcular offset y obtener datos
         $offset = ($page - 1) * $perPage;
-
-        // 3. Get Data (Ojo: count resetea el builder, así que hay que re-aplicar condiciones 
-        // pero como BaseQueryBuilder resetea, asumimos uso básico por ahora o refactorizamos QueryBuilder luego).
-        // En esta fase 1, implementamos la paginación básica.
-        
-        if ($this->useSoftDeletes && !$this->tempWithDeleted) {
-            $this->builder->where($this->deletedField, 'IS', null);
-        }
-        if ($this->tempOnlyDeleted) {
-            $this->builder->where($this->deletedField, 'IS NOT', null);
-        }
         $data = $this->builder
                      ->select(['*'])
                      ->limit($perPage)
@@ -103,7 +81,7 @@ abstract class BaseModel {
                 'total' => $total,
                 'per_page' => $perPage,
                 'current_page' => $page,
-                'last_page' => ceil($total / $perPage)
+                'last_page' => (int)ceil($total / max($perPage, 1))
             ]
         ];
     }

@@ -60,7 +60,12 @@ class RbacSetupService extends BaseService {
                 'investigacion.ver' => 'Ver listado y detalles de tesis',
                 'investigacion.crear' => 'Registrar nuevas tesis y asignaciones',
                 'investigacion.editar' => 'Editar información de tesis existentes',
-                'investigacion.eliminar' => 'Eliminar registros de tesis'
+                'investigacion.eliminar' => 'Eliminar registros de tesis',
+
+                // Sistema y Mantenimiento
+                'sistema.ver' => 'Acceso al panel de sistema y mantenimiento',
+                'papelera.gestionar' => 'Gestionar papelera de reciclaje (restaurar/purgar)',
+                'rbac.configurar' => 'Ejecutar configuración y setup RBAC',
             ];
 
             $permisoIds = [];

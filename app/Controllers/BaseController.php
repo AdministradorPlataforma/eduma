@@ -30,11 +30,8 @@ class BaseController
     {
         $this->requireLogin();
 
-        // Bypass para Súper Administradores
-        if ($this->session->isAdmin()) {
-            return;
-        }
-        
+        // RBAC Real: Verificar permisos sin bypass (2026-02-23)
+        // El Super Admin tiene todos los permisos asignados vía rol_permisos.
         if (!$this->session->hasPermission($permission)) {
             $this->logSecurity("Acceso denegado: falta permiso [$permission]");
             

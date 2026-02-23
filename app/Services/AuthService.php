@@ -37,45 +37,48 @@ class AuthService extends BaseService {
         $passwordNeedsRehash = false;
         $isValid = false;
 
-        // 1. Verificación Híbrida (Legacy vs Modern)
-        // ELIMINADO: Soporte para texto plano (AuthService.php:42) por seguridad.
-        // Se debe ejecutar scripts/fix_legacy_passwords.php si existen casos.
+        // ============================================================
+        // AUTENTICACIÓN SEGURA - Solo hashes modernos (bcrypt/argon2)
+        // ============================================================
+        // ELIMINADO (2026-02-23): Soporte MD5/SHA1 removido por seguridad.
+        // Si existen usuarios con hashes legacy, ejecutar:
+        //   php scripts/migrate_legacy_passwords.php
+        // Ese script fuerza el reset y notifica al admin.
+        // ============================================================
 
-        if (md5($password) === $user['password']) {
-             // Legacy MD5
-             $passwordNeedsRehash = true;
-             $isValid = true;
-        } elseif (sha1($password) === $user['password']) {
-             // Legacy SHA1
-             $passwordNeedsRehash = true;
-             $isValid = true;
+        // Detectar hash legacy (MD5=32hex, SHA1=40hex) y rechazar
+        $storedHash = $user['password'] ?? '';
+        if (preg_match('/^[a-f0-9]{32}$/i', $storedHash) || preg_match('/^[a-f0-9]{40}$/i', $storedHash)) {
+            // Hash inseguro detectado — NO validamos, logueamos y bloqueamos
+            \App\Helpers\LoggerHelper::security(
+                "Login bloqueado: hash legacy detectado (MD5/SHA1)", 
+                ['user_id' => $user['id'], 'username' => $username]
+            );
+            $this->error('Su contraseña requiere actualización. Contacte al administrador.');
         }
-        // CHECK STANDARD para hashes modernos
-        else {
-             $isValid = PasswordValidator::verify($password, $user['password']);
-             if ($isValid && PasswordValidator::needsRehash($user['password'])) {
-                 $passwordNeedsRehash = true;
-             }
+
+        // Verificación segura con bcrypt/argon2 (password_verify)
+        $isValid = PasswordValidator::verify($password, $storedHash);
+        
+        if ($isValid && PasswordValidator::needsRehash($storedHash)) {
+            $passwordNeedsRehash = true;
         }
 
         if (!$isValid) {
             $this->error('Credenciales incorrectas.');
         }
 
-        // 2. On-the-fly Migration (Auto-fix)
+        // Auto-rehash si el algoritmo/costo cambió (bcrypt cost upgrade)
         if ($passwordNeedsRehash) {
             try {
                 $newHash = PasswordValidator::hash($password);
                 $this->usuarioModel->update((int)$user['id'], ['password' => $newHash]);
-                // Actualizamos el array local para consistencia si se usa después
-                $user['password'] = $newHash; 
-                
-                // Logueamos la migración silenciosa para auditoría interna
-                // (Opcional, si existiera un logger de sistema bajo nivel)
+                $user['password'] = $newHash;
+
+                error_log("[AUTH] Password rehashed para usuario ID:{$user['id']} (upgrade de costo bcrypt)");
             } catch (\Exception $e) {
-                // Si falla la actualización, no bloqueamos el login, 
-                // pero el usuario seguirá siendo legacy hasta el próximo intento.
-                error_log("Error migrando password usuario {$user['id']}: " . $e->getMessage());
+                // No bloqueamos el login si falla el rehash
+                error_log("[AUTH_WARN] Error rehashing password usuario {$user['id']}: " . $e->getMessage());
             }
         }
 
@@ -106,20 +109,27 @@ class AuthService extends BaseService {
             'es_estudiante' => $user['es_estudiante']
         ]);
 
-        // Cargar premisos básicos
+        // Permisos base (todos los usuarios autenticados)
         $permissions = ['ver_escritorio'];
 
-        // 1. RBAC Dinámico: Obtener permisos de Roles asignados
+        // ============================================================
+        // RBAC DINÁMICO PURO (2026-02-23)
+        // ============================================================
+        // Todos los permisos se cargan desde rol_permisos (BD).
+        // Ya NO hay permisos hardcodeados para es_admin.
+        // El Super Admin los tiene vía RbacSetupService.
+        // ============================================================
+
         $userId = (int)$user['id'];
-        // Consulta directa para optimizar (podría delegarse a repositorio)
-        // Obtenemos los slugs de permisos únicos asociados a los roles del usuario
+        $db = \App\Core\Container::getInstance()->get('db');
+
+        // 1. Obtener permisos dinámicos de los roles asignados
         $sql = "SELECT DISTINCT p.slug 
                 FROM usuario_roles ur
                 JOIN rol_permisos rp ON ur.rol_id = rp.rol_id
                 JOIN permisos p ON rp.permiso_id = p.id
                 WHERE ur.usuario_id = :uid";
         
-        $db = \App\Core\Container::getInstance()->get('db');
         $stmt = $db->prepare($sql);
         $stmt->execute([':uid' => $userId]);
         $dynamicPerms = $stmt->fetchAll(\PDO::FETCH_COLUMN);
@@ -128,25 +138,43 @@ class AuthService extends BaseService {
             $permissions = array_merge($permissions, $dynamicPerms);
         }
 
-        // 2. Legacy Fallback (para admins antiguos sin rol asignado aún)
-        if (($user['es_admin'] ?? 0) == 1) {
-             // Si tiene flag admin pero NO tiene permisos dinámicos (migración pendiente), le damos full.
-             // Opcional: darle full siempre si es SuperUser.
-             // Por seguridad, mantenemos el full access al admin legacy por ahora.
-             $permissions = array_merge($permissions, [
-                'ver_usuario', 'crear_usuario', 'editar_usuario', 'eliminar_usuario',
-                'ver_rol', 'crear_rol', 'editar_rol', 'eliminar_rol',
-                'ver_permiso', 'crear_permiso', 'editar_permiso', 'eliminar_permiso',
-                'ver_configuracion', 'ver_reportes', 'ver_cursos',
-                'investigacion.ver', 'investigacion.crear', 'investigacion.gestionar',
-                'sistema.ver', 'papelera.gestionar', 'rbac.configurar'
-            ]);
+        // 2. Auto-migrate: Si es_admin=1 pero sin rol asignado, asignar rol Super Admin
+        //    Esto es un fallback de migración, se logea como incidencia.
+        if (($user['es_admin'] ?? 0) == 1 && empty($dynamicPerms)) {
+            $stmtCheck = $db->prepare("SELECT COUNT(*) FROM usuario_roles WHERE usuario_id = :uid");
+            $stmtCheck->execute([':uid' => $userId]);
+            $hasRoles = (int)$stmtCheck->fetchColumn();
+            
+            if ($hasRoles === 0) {
+                // Auto-asignar rol Super Admin (ID 1)
+                try {
+                    $stmtAssign = $db->prepare(
+                        "INSERT IGNORE INTO usuario_roles (usuario_id, rol_id) VALUES (:uid, 1)"
+                    );
+                    $stmtAssign->execute([':uid' => $userId]);
+                    
+                    // Recargar permisos del rol recién asignado
+                    $stmt->execute([':uid' => $userId]);
+                    $newPerms = $stmt->fetchAll(\PDO::FETCH_COLUMN);
+                    if ($newPerms) {
+                        $permissions = array_merge($permissions, $newPerms);
+                    }
+                    
+                    error_log("[RBAC_MIGRATE] Admin ID:{$userId} sin roles — auto-asignado rol Super Admin (ID:1)");
+                } catch (\Exception $e) {
+                    error_log("[RBAC_WARN] No se pudo auto-asignar rol Super Admin al usuario {$userId}: " . $e->getMessage());
+                }
+            }
         }
 
-        if (($user['es_docente'] ?? 0) == 1) $permissions[] = 'ver_cursos';
+        // 3. Permisos complementarios por perfil funcional
+        if (($user['es_docente'] ?? 0) == 1) {
+            $permissions[] = 'ver_cursos';
+        }
         
         // Eliminar duplicados
         $permissions = array_unique($permissions);
+        $permissions = array_values($permissions); // Reindexar
         
         $this->session->set('user_permissions', $permissions);
     }

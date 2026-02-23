@@ -73,9 +73,11 @@ class Container
 
         $constructor = $reflection->getConstructor();
 
-        // Si no tiene constructor, instanciar directamente
+        // Si no tiene constructor, instanciar directamente y cachear
         if (is_null($constructor)) {
-            return new $key();
+            $instance = new $key();
+            $this->instances[$key] = $instance;
+            return $instance;
         }
 
         // Resolver parámetros del constructor
@@ -105,6 +107,9 @@ class Container
         }
 
         $instance = $reflection->newInstanceArgs($dependencies);
+        
+        // Cachear para actuar como Singleton por defecto
+        $this->instances[$key] = $instance;
 
         return $instance;
     }
