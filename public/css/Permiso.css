@@ -1,0 +1,50 @@
+/* Permiso Module CSS */
+
+/* Overrides and Specific Styles calling Usuario styles where possible, but customized colors */
+
+/* Rose Accent for Permissions */
+.text-rose {
+    color: #e11d48 !important;
+}
+
+.bg-soft-rose {
+    background-color: rgba(225, 29, 72, 0.1) !important;
+    color: #e11d48 !important;
+}
+
+.btn-rose {
+    background: #e11d48;
+    color: white;
+    border: none;
+    transition: all 0.3s ease;
+}
+
+.btn-rose:hover {
+    background: #be123c;
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px -5px rgba(225, 29, 72, 0.4);
+}
+
+/* Glass Inputs */
+.form-control-glass {
+    background: rgba(255, 255, 255, 0.6) !important;
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    border-radius: 12px;
+    padding: 0.8rem 1rem;
+    font-size: 0.95rem;
+    color: #1e293b;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.form-control-glass:focus {
+    background: #ffffff !important;
+    border-color: #e11d48;
+    /* Rose focus */
+    box-shadow: 0 0 0 4px rgba(225, 29, 72, 0.1);
+    transform: translateY(-2px);
+}
+
+.input-group .form-control-glass:focus {
+    z-index: 3;
+}

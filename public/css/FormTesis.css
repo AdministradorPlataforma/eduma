@@ -1,0 +1,284 @@
+/* FormTesis.css - Cohesive Soft Premium */
+
+/* 1. Main Form Card */
+.glass-panel {
+    background: #ffffff;
+    border-radius: 24px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 10px 15px -3px rgba(0, 0, 0, 0.04);
+    border: 1px solid rgba(226, 232, 240, 0.6);
+}
+
+/* 2. Utility for Header Icon */
+.bg-soft-indigo {
+    background: rgba(99, 102, 241, 0.1) !important;
+    color: var(--accent-indigo) !important;
+}
+
+.icon-sq {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+}
+
+/* 3. Inputs - Soft & airy */
+.form-label {
+    font-size: 0.9rem !important;
+    font-weight: 700;
+    color: #475569;
+    margin-bottom: 0.6rem;
+    letter-spacing: 0.02em;
+    text-transform: none;
+}
+
+.form-control-glass {
+    background-color: #f8fafc !important;
+    /* Use background-color to avoid resetting other bg properties */
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 12px !important;
+    padding: 0.8rem 1rem !important;
+    font-size: 0.95rem;
+    color: #1e293b;
+    transition: all 0.2s ease;
+    box-shadow: none;
+}
+
+.form-select-glass {
+    background-color: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 12px !important;
+    padding: 0.8rem 1rem !important;
+    padding-right: 2.5rem !important;
+    /* Make space for the arrow */
+    font-size: 0.95rem;
+    color: #1e293b;
+    transition: all 0.2s ease;
+    box-shadow: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 1rem center !important;
+    background-size: 16px 12px !important;
+}
+
+.form-control-glass:focus,
+.form-select-glass:focus {
+    background-color: #ffffff !important;
+    border-color: var(--accent-indigo) !important;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1) !important;
+}
+
+/* 4. Buttons */
+.btn-round {
+    border-radius: 50rem !important;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    padding: 0.8rem 1.6rem;
+}
+
+.btn-premium-primary {
+    background: linear-gradient(135deg, var(--accent-indigo) 0%, var(--accent-violet) 100%);
+    color: white;
+    border: none;
+    transition: all 0.3s ease;
+    box-shadow: 0 10px 20px -5px rgba(79, 70, 229, 0.4);
+}
+
+.btn-premium-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 15px 30px -5px rgba(79, 70, 229, 0.5);
+    color: white;
+}
+
+.btn-premium-secondary {
+    background: transparent;
+    color: #64748b;
+    border: 1px solid #e2e8f0;
+}
+
+.btn-premium-secondary:hover {
+    background: #f8fafc;
+    color: #1e293b;
+    border-color: #cbd5e1;
+}
+
+/* 5. Validation */
+.invalid-feedback {
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-top: 0.4rem;
+}
+
+/* 6. File Input Customization */
+input[type="file"]::file-selector-button {
+    background: #f1f5f9;
+    color: #475569;
+    border: 0;
+    border-radius: 8px;
+    margin-right: 15px;
+    padding: 8px 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .2s;
+}
+
+input[type="file"]::file-selector-button:hover {
+    background: #e2e8f0;
+}
+
+/* 7. Custom Select2 Styling for Glass Theme */
+.select2-container--default .select2-selection--single {
+    background-color: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 12px !important;
+    height: 50px !important;
+    /* display: flex; REMOVE FLEX letting line-height do the work */
+    /* align-items: center; */
+}
+
+.select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: 48px !important;
+    right: 10px !important;
+    position: absolute !important;
+    top: 1px !important;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__clear {
+    cursor: pointer;
+    float: right;
+    font-weight: bold;
+    height: 26px;
+    margin-right: 30px !important;
+    /* Move X to the left of the arrow */
+    padding-right: 0px;
+    position: relative;
+    /* Or absolute depending on parent */
+    top: 12px;
+    /* Vertically center approx */
+    z-index: 10;
+    color: #94a3b8;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+    color: #1e293b !important;
+    padding-left: 1rem !important;
+    font-size: 0.95rem;
+    font-weight: 500;
+    height: 100% !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+.select2-dropdown {
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 12px !important;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1) !important;
+    overflow: hidden !important;
+    z-index: 9999 !important;
+}
+
+.select2-search__field {
+    border-radius: 8px !important;
+    padding: 8px !important;
+}
+
+/* --- Select2 Multi-select Custom Styling --- */
+.select2-container--default .select2-selection--multiple {
+    background-color: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 12px !important;
+    min-height: 50px !important;
+    height: auto !important;
+    padding: 4px 8px !important;
+}
+
+.select2-container--default.select2-container--focus .select2-selection--multiple {
+    border-color: var(--accent-indigo) !important;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1) !important;
+}
+
+.select2-container--default .select2-selection--multiple .select2-selection__rendered {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    list-style: none !important;
+}
+
+.select2-container--default .select2-selection--multiple .select2-selection__choice {
+    background-color: #4f46e5 !important;
+    border: none !important;
+    color: #ffffff !important;
+    border-radius: 20px !important;
+    padding: 2px 12px !important;
+    margin: 0 !important;
+    font-size: 0.85rem !important;
+    font-weight: 600 !important;
+    display: flex !important;
+    align-items: center !important;
+    box-shadow: 0 2px 4px rgba(79, 70, 229, 0.2) !important;
+}
+
+.select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+    color: #ffffff !important;
+    font-size: 1.1rem !important;
+    font-weight: 800 !important;
+    margin-right: 8px !important;
+    border: none !important;
+    background: transparent !important;
+    cursor: pointer !important;
+    line-height: 1 !important;
+    transition: transform 0.2s ease;
+}
+
+.select2-container--default .select2-selection--multiple .select2-selection__choice__remove:hover {
+    transform: scale(1.2) !important;
+    color: #ffdce0 !important;
+    /* Slight red tint on hover for delete feedback */
+    background: transparent !important;
+}
+
+.select2-container--default .select2-selection--multiple .select2-selection__choice__display {
+    padding-left: 5px !important;
+}
+
+.select2-container--default .select2-selection--multiple .select2-search--inline .select2-search__field {
+    margin: 0 !important;
+    padding: 8px !important;
+    height: 38px !important;
+}
+
+.select2-container--default .select2-selection--multiple .select2-selection__clear {
+    margin-top: 10px !important;
+    margin-right: 12px !important;
+    color: #94a3b8 !important;
+}
+
+/* Dropdown Selected/Highlighted states */
+.select2-results__option[aria-selected=true] {
+    background-color: #f1f5f9 !important;
+    color: #475569 !important;
+}
+
+.select2-container--default .select2-results__option--highlighted[aria-selected] {
+    background-color: var(--accent-indigo) !important;
+    color: white !important;
+}
+
+.select2-container--default .select2-results__option[aria-selected=true] {
+    background-color: #f1f5f9 !important;
+    color: var(--accent-indigo) !important;
+    font-weight: 600;
+}
+
+.select2-container--default .select2-results__option[aria-selected=true]:before {
+    content: '✓';
+    margin-right: 8px;
+    font-weight: bold;
+}

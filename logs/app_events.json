@@ -1,0 +1,16 @@
+{"timestamp":"2026-02-12 07:16:33","level":"SECURITY","message":"Acceso denegado: falta permiso [ver_usuarios]","user_id":2,"ip":"::1","context":[]}
+{"timestamp":"2026-02-12 07:21:37","level":"SECURITY","message":"Login exitoso usuario: 5141441","user_id":2,"ip":"::1","context":[]}
+{"timestamp":"2026-02-12 12:13:04","level":"SECURITY","message":"Usuario 2 cerró sesión correctamente.","user_id":2,"ip":"::1","context":[]}
+{"timestamp":"2026-02-13 05:30:13","level":"SECURITY","message":"Login exitoso usuario: 5141441","user_id":2,"ip":"::1","context":[]}
+{"timestamp":"2026-02-13 16:56:30","level":"SECURITY","message":"Login exitoso usuario: 5141441","user_id":1,"ip":"192.168.1.195","context":[]}
+{"timestamp":"2026-02-13 19:52:45","level":"SECURITY","message":"Usuario 1 cerró sesión correctamente.","user_id":1,"ip":"192.168.1.195","context":[]}
+{"timestamp":"2026-02-16 14:32:13","level":"SECURITY","message":"Login exitoso usuario: 5141441","user_id":1,"ip":"192.168.1.195","context":[]}
+{"timestamp":"2026-02-16 15:13:15","level":"SECURITY","message":"Usuario 1 cerró sesión correctamente.","user_id":1,"ip":"192.168.1.195","context":[]}
+{"timestamp":"2026-02-16 15:13:33","level":"SECURITY","message":"Login exitoso usuario: 5141441","user_id":1,"ip":"192.168.1.195","context":[]}
+{"timestamp":"2026-02-16 16:51:48","level":"SECURITY","message":"Usuario 1 cerró sesión correctamente.","user_id":1,"ip":"192.168.1.195","context":[]}
+{"timestamp":"2026-02-16 16:52:36","level":"SECURITY","message":"Login exitoso usuario: 5141441","user_id":1,"ip":"192.168.1.195","context":[]}
+{"timestamp":"2026-02-16 17:50:21","level":"SECURITY","message":"Usuario 1 cerró sesión correctamente.","user_id":1,"ip":"192.168.1.195","context":[]}
+{"timestamp":"2026-02-16 17:50:54","level":"SECURITY","message":"Login exitoso usuario: 5141441","user_id":1,"ip":"192.168.1.195","context":[]}
+{"timestamp":"2026-02-17 14:01:32","level":"SECURITY","message":"Login exitoso usuario: 5141441","user_id":1,"ip":"192.168.1.195","context":[]}
+{"timestamp":"2026-02-23 15:32:11","level":"SECURITY","message":"Login exitoso usuario: 5141441","user_id":1,"ip":"192.168.1.195","context":[]}
+{"timestamp":"2026-02-23 18:25:10","level":"SECURITY","message":"Usuario 1 cerró sesión correctamente.","user_id":1,"ip":"192.168.1.195","context":[]}

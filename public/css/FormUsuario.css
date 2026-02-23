@@ -1,0 +1,164 @@
+/* FormUsuario.css - Cohesive Soft Premium */
+
+/* 1. Main Container - Seamless Integration */
+.premium-form-card {
+    background: #ffffff;
+    border-radius: 24px;
+    box-shadow:
+        0 4px 6px -1px rgba(0, 0, 0, 0.02),
+        0 10px 15px -3px rgba(0, 0, 0, 0.04);
+    border: 1px solid rgba(226, 232, 240, 0.6);
+    position: relative;
+    overflow: visible;
+    width: 100%;
+    /* Ensure full width */
+}
+
+/* 2. Header - Clean & Simple */
+.form-header-simple {
+    padding-bottom: 2rem;
+    margin-bottom: 2rem;
+    border-bottom: 1px solid rgba(241, 245, 249, 0.8);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.header-icon-simple {
+    width: 50px;
+    height: 50px;
+    background: rgba(241, 245, 249, 0.5);
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent-indigo);
+    font-size: 1.25rem;
+}
+
+/* 3. Inputs - Soft & airy */
+.form-label {
+    font-size: 0.8rem !important;
+    font-weight: 700;
+    color: #475569;
+    margin-bottom: 0.6rem;
+    letter-spacing: 0.02em;
+    text-transform: none;
+}
+
+.form-control-glass {
+    background: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 12px !important;
+    padding: 0.8rem 1rem !important;
+    font-size: 0.95rem;
+    color: #1e293b;
+    transition: all 0.2s ease;
+    box-shadow: none;
+}
+
+.form-control-glass:focus {
+    background: #ffffff !important;
+    border-color: var(--accent-indigo) !important;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1) !important;
+}
+
+/* 4. Selection Cards - Refined Layout */
+.custom-checkbox-card {
+    position: relative;
+    cursor: pointer;
+    min-width: 140px;
+    flex: 1;
+}
+
+.custom-checkbox-card input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.custom-checkbox-card .card-content {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    height: 100%;
+}
+
+.custom-checkbox-card:hover .card-content {
+    border-color: var(--accent-indigo);
+    background: #f8fafc;
+}
+
+.custom-checkbox-card input:checked+.card-content {
+    background: rgba(238, 242, 255, 0.6);
+    border-color: var(--accent-indigo);
+    box-shadow: 0 4px 12px -2px rgba(99, 102, 241, 0.15);
+}
+
+.custom-checkbox-card input:checked+.card-content i {
+    color: var(--accent-indigo);
+    transform: scale(1.1);
+}
+
+.custom-checkbox-card .card-content i {
+    font-size: 1.75rem;
+    margin-bottom: 0.5rem;
+    color: #94a3b8;
+    transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.custom-checkbox-card .card-content span {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #64748b;
+}
+
+.custom-checkbox-card input:checked+.card-content span {
+    color: var(--accent-indigo);
+}
+
+/* 5. Section Titles - Minimal */
+.form-section-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 1.25rem;
+    letter-spacing: -0.02em;
+}
+
+/* 6. Switch - Standard */
+.form-switch-lg .form-check-input {
+    height: 1.75rem;
+    width: 3.25rem;
+    border-radius: 99px;
+    cursor: pointer;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='white'/%3e%3c/svg%3e");
+}
+
+.form-check-input:checked {
+    background-color: var(--accent-mint);
+    border-color: var(--accent-mint);
+}
+
+/* 7. Alert */
+.alert-soft-info {
+    background: rgba(241, 245, 249, 0.7);
+    border: 1px solid rgba(226, 232, 240, 1);
+    border-radius: 12px;
+    color: #475569;
+    font-size: 0.9rem;
+}
+
+.alert-soft-info i {
+    color: var(--accent-sky);
+}
+
+/* 8. Premium Buttons - VIBRANT */
+

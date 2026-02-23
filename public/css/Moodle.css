@@ -1,0 +1,792 @@
+/* Moodle.css - Premium Integration Module Styles V2 */
+
+/* =====================================
+   VARIABLES & BASE
+   ===================================== */
+:root {
+    --moodle-primary: #6366f1;
+    --moodle-primary-soft: #eef2ff;
+    --moodle-success: #10b981;
+    --moodle-success-soft: #ecfdf5;
+    --moodle-warning: #f59e0b;
+    --moodle-warning-soft: #fffbeb;
+    --moodle-danger: #ef4444;
+    --moodle-danger-soft: #fef2f2;
+    --moodle-info: #3b82f6;
+    --moodle-info-soft: #eff6ff;
+}
+
+/* =====================================
+   HEALTH CHECK PANEL
+   ===================================== */
+.health-indicator {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--moodle-success-soft);
+    transition: all 0.3s ease;
+}
+
+.health-indicator.error {
+    background: var(--moodle-danger-soft);
+}
+
+.health-indicator.loading {
+    background: var(--moodle-warning-soft);
+}
+
+.health-dot {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--moodle-success);
+    animation: none;
+}
+
+.health-dot.loading {
+    background: var(--moodle-warning);
+    animation: pulse 1.5s infinite;
+}
+
+.health-dot.error {
+    background: var(--moodle-danger);
+}
+
+.health-details {
+    background: rgba(0, 0, 0, 0.02);
+    border-radius: 12px;
+    padding: 12px 16px;
+}
+
+.health-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.health-row:last-child {
+    border-bottom: none;
+}
+
+.health-row .label {
+    color: #64748b;
+    font-size: 0.85rem;
+}
+
+.health-row .value {
+    font-weight: 600;
+    color: #1e293b;
+    font-size: 0.85rem;
+}
+
+/* =====================================
+   CIRCUIT BREAKER
+   ===================================== */
+.circuit-indicator {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--moodle-success-soft);
+    color: var(--moodle-success);
+    font-size: 1.5rem;
+    transition: all 0.3s ease;
+}
+
+.circuit-indicator.open {
+    background: var(--moodle-danger-soft);
+    color: var(--moodle-danger);
+    animation: pulse 1s infinite;
+}
+
+.circuit-indicator.warning {
+    background: var(--moodle-warning-soft);
+    color: var(--moodle-warning);
+}
+
+/* =====================================
+   STATISTICS
+   ===================================== */
+.stats-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--moodle-primary-soft);
+    color: var(--moodle-primary);
+    font-size: 1.5rem;
+}
+
+.stat-number {
+    font-size: 1.75rem;
+    font-weight: 800;
+    line-height: 1.2;
+}
+
+.stat-label {
+    font-size: 0.75rem;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* =====================================
+   SYNC STATUS BADGE
+   ===================================== */
+.sync-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 30px;
+    font-weight: 700;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.sync-status-badge.idle {
+    background: #f1f5f9;
+    color: #64748b;
+}
+
+.sync-status-badge.running {
+    background: var(--moodle-primary-soft);
+    color: var(--moodle-primary);
+}
+
+.sync-status-badge.completed {
+    background: var(--moodle-success-soft);
+    color: var(--moodle-success);
+}
+
+.sync-status-badge.error {
+    background: var(--moodle-danger-soft);
+    color: var(--moodle-danger);
+}
+
+.pulse-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+}
+
+.sync-status-badge.running .pulse-dot {
+    animation: pulse 1s infinite;
+}
+
+/* =====================================
+   CARDS - Premium Soft Theme
+   ===================================== */
+.moodle-card {
+    border-radius: 20px;
+    padding: 1.5rem;
+    color: #475569;
+    position: relative;
+    overflow: hidden;
+    height: 100%;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    display: flex;
+    flex-direction: column;
+    background: #ffffff;
+}
+
+.moodle-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.01);
+}
+
+.moodle-card .card-icon {
+    font-size: 1.75rem;
+    margin-bottom: 1rem;
+    width: 50px;
+    height: 50px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #ffffff;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.moodle-card h4 {
+    color: #1e293b;
+    font-weight: 800;
+}
+
+.entity-count {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: inherit;
+}
+
+/* Card Themes */
+.card-users {
+    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+    border-color: #dbeafe;
+}
+
+.card-users .card-icon {
+    color: #3b82f6;
+}
+
+.card-courses {
+    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+    border-color: #dcfce7;
+}
+
+.card-courses .card-icon {
+    color: #10b981;
+}
+
+.card-cohorts {
+    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+    border-color: #fef3c7;
+}
+
+.card-cohorts .card-icon {
+    color: #f59e0b;
+}
+
+.card-grades {
+    background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+    border-color: #fee2e2;
+}
+
+.card-grades .card-icon {
+    color: #ef4444;
+}
+
+/* =====================================
+   BUTTONS
+   ===================================== */
+.btn-glass {
+    background: rgba(255, 255, 255, 0.9);
+    color: #475569;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    font-weight: 700;
+    font-size: 0.9rem;
+    padding: 0.5rem 1rem;
+    border-radius: 10px;
+    transition: all 0.2s;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+}
+
+.btn-glass:hover {
+    background: #ffffff;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    color: #1e293b;
+}
+
+.card-users .btn-glass:hover {
+    color: #3b82f6;
+}
+
+.card-courses .btn-glass:hover {
+    color: #10b981;
+}
+
+.card-cohorts .btn-glass:hover {
+    color: #f59e0b;
+}
+
+.card-grades .btn-glass:hover {
+    color: #ef4444;
+}
+
+.btn-indigo {
+    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+    border: none;
+    color: white;
+}
+
+.btn-indigo:hover {
+    background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px -5px rgba(99, 102, 241, 0.4);
+}
+
+.btn-soft-primary {
+    background: var(--moodle-primary-soft);
+    color: var(--moodle-primary);
+    border: none;
+}
+
+.btn-soft-primary:hover {
+    background: var(--moodle-primary);
+    color: white;
+}
+
+.btn-soft-danger {
+    background: var(--moodle-danger-soft);
+    color: var(--moodle-danger);
+    border: none;
+}
+
+.btn-soft-danger:hover {
+    background: var(--moodle-danger);
+    color: white;
+}
+
+.btn-soft-secondary {
+    background: #f1f5f9;
+    color: #64748b;
+    border: none;
+}
+
+.btn-soft-secondary:hover {
+    background: #e2e8f0;
+    color: #475569;
+}
+
+/* =====================================
+   PROGRESS BAR
+   ===================================== */
+.progress-lg {
+    height: 12px;
+    border-radius: 10px;
+    background: rgba(99, 102, 241, 0.1);
+}
+
+.progress-bar.bg-indigo {
+    background: linear-gradient(90deg, #6366f1 0%, #8b5cf6 100%);
+}
+
+/* =====================================
+   LOG PANEL
+   ===================================== */
+.sync-log {
+    background: #0f172a;
+    border-radius: 12px;
+    padding: 16px;
+    max-height: 300px;
+    overflow-y: auto;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.8rem;
+}
+
+.log-entry {
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    display: flex;
+    gap: 12px;
+}
+
+.log-entry:last-child {
+    border-bottom: none;
+}
+
+.log-time {
+    color: #64748b;
+    flex-shrink: 0;
+}
+
+.log-msg {
+    color: #94a3b8;
+}
+
+.log-entry.success .log-msg {
+    color: #34d399;
+}
+
+.log-entry.error .log-msg {
+    color: #f87171;
+}
+
+.log-entry.warning .log-msg {
+    color: #fbbf24;
+}
+
+.log-entry.info .log-msg {
+    color: #60a5fa;
+}
+
+/* =====================================
+   ANIMATIONS
+   ===================================== */
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    50% {
+        transform: scale(1.2);
+        opacity: 0.7;
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.animate-up {
+    opacity: 0;
+    transform: translateY(20px);
+    animation: slideUp 0.5s ease forwards;
+}
+
+@keyframes slideUp {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.stagger-1 {
+    animation-delay: 0.1s;
+}
+
+.stagger-2 {
+    animation-delay: 0.15s;
+}
+
+.stagger-3 {
+    animation-delay: 0.2s;
+}
+
+.stagger-4 {
+    animation-delay: 0.25s;
+}
+
+.stagger-5 {
+    animation-delay: 0.3s;
+}
+
+.stagger-6 {
+    animation-delay: 0.35s;
+}
+
+.stagger-7 {
+    animation-delay: 0.4s;
+}
+
+.stagger-8 {
+    animation-delay: 0.45s;
+}
+
+/* =====================================
+   GLASS PANEL (If not defined globally)
+   ===================================== */
+.glass-panel {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    border: 1px solid rgba(226, 232, 240, 0.6);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+/* =====================================
+   RESPONSIVE
+   ===================================== */
+@media (max-width: 768px) {
+    .sync-status-badge .status-text {
+        display: none;
+    }
+
+    .health-details {
+        font-size: 0.8rem;
+    }
+
+    .stat-number {
+        font-size: 1.25rem;
+    }
+}
+
+/* =====================================
+   BADGE UTILITIES
+   ===================================== */
+.bg-soft-success {
+    background: var(--moodle-success-soft) !important;
+}
+
+.bg-soft-danger {
+    background: var(--moodle-danger-soft) !important;
+}
+
+.bg-soft-warning {
+    background: var(--moodle-warning-soft) !important;
+}
+
+.text-success {
+    color: var(--moodle-success) !important;
+}
+
+.text-danger {
+    color: var(--moodle-danger) !important;
+}
+
+.text-warning {
+    color: var(--moodle-warning) !important;
+}
+
+/* =====================================
+   NEW CARD THEMES V3.0
+   ===================================== */
+.card-categories {
+    background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%);
+    border-color: #f3e8ff;
+}
+
+.card-categories .card-icon {
+    color: #a855f7;
+}
+
+.card-categories .btn-glass:hover {
+    color: #a855f7;
+}
+
+.card-enrollments {
+    background: linear-gradient(135deg, #ecfeff 0%, #cffafe 100%);
+    border-color: #cffafe;
+}
+
+.card-enrollments .card-icon {
+    color: #06b6d4;
+}
+
+.card-enrollments .btn-glass:hover {
+    color: #06b6d4;
+}
+
+/* =====================================
+   PERFORMANCE INDICATORS V3.0
+   ===================================== */
+.perf-card {
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border-radius: 16px;
+    padding: 1rem;
+    text-align: center;
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    transition: all 0.3s ease;
+}
+
+.perf-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+}
+
+.perf-icon {
+    font-size: 1.25rem;
+    margin-bottom: 0.5rem;
+}
+
+.perf-value {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #1e293b;
+    line-height: 1.2;
+}
+
+.perf-label {
+    font-size: 0.7rem;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 0.25rem;
+}
+
+/* =====================================
+   BADGES V3.0
+   ===================================== */
+.bg-gradient-indigo {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    color: white;
+    font-weight: 600;
+    font-size: 0.65rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Progress bar gradient */
+.progress-bar.bg-gradient-indigo {
+    background: linear-gradient(90deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
+    background-size: 200% 100%;
+    animation: shimmer 2s infinite linear;
+    width: var(--progress, 0%);
+    transition: width 0.4s ease;
+}
+
+
+@keyframes shimmer {
+    0% {
+        background-position: 200% 0;
+    }
+
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+/* =====================================
+   FORM CONTROLS V3.0
+   ===================================== */
+.form-select-lg {
+    border-radius: 12px;
+    border: 2px solid #e2e8f0;
+    padding: 0.75rem 1rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.form-select-lg:focus {
+    border-color: var(--moodle-primary);
+    box-shadow: 0 0 0 3px var(--moodle-primary-soft);
+}
+
+.custom-switch .form-check-input {
+    width: 3rem;
+    height: 1.5rem;
+    cursor: pointer;
+}
+
+.custom-switch .form-check-input:checked {
+    background-color: var(--moodle-primary);
+    border-color: var(--moodle-primary);
+}
+
+/* =====================================
+   BUTTON SOFT INFO
+   ===================================== */
+.btn-soft-info {
+    background: var(--moodle-info-soft);
+    color: var(--moodle-info);
+    border: none;
+}
+
+.btn-soft-info:hover {
+    background: var(--moodle-info);
+    color: white;
+}
+
+/* =====================================
+   ADDITIONAL ANIMATIONS
+   ===================================== */
+.stagger-9 {
+    animation-delay: 0.5s;
+}
+
+/* Compact cards for 6-column layout */
+@media (min-width: 1200px) {
+    .moodle-card h5 {
+        font-size: 1rem;
+    }
+
+    .moodle-card .card-icon {
+        width: 40px;
+        height: 40px;
+        font-size: 1.25rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .moodle-card {
+        padding: 1.25rem;
+    }
+}
+
+/* =====================================
+   UNIFIED CONSOLE V3.5
+   ===================================== */
+.console-icon {
+    width: 44px;
+    height: 44px;
+    background: var(--moodle-primary-soft);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+}
+
+.metric-box {
+    background: rgba(0, 0, 0, 0.02);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    border-radius: 12px;
+    padding: 10px;
+    text-align: center;
+}
+
+.metric-box .label {
+    display: block;
+    font-size: 0.65rem;
+    color: #64748b;
+    text-transform: uppercase;
+    font-weight: 700;
+}
+
+.metric-box .value {
+    display: block;
+    font-size: 1.1rem;
+    font-weight: 800;
+}
+
+.perf-card-mini {
+    background: #1e293b;
+    color: white;
+    border-radius: 12px;
+    padding: 10px;
+    text-align: center;
+}
+
+.perf-card-mini .perf-value {
+    color: #38bdf8;
+    font-size: 1.25rem;
+}
+
+.perf-card-mini .perf-label {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 0.6rem;
+}
+
+.glass-inset {
+    background: rgba(0, 0, 0, 0.03);
+    border: 1px inset rgba(0, 0, 0, 0.05);
+}
+
+.custom-switch-sm .form-check-input {
+    width: 2.2rem;
+    height: 1.1rem;
+}
+
+/* Animations for Layer Switching */
+#sync-config-layer,
+#sync-monitor-layer {
+    transition: all 0.4s ease;
+}
+
+.d-none {
+    display: none !important;
+}
+
+.animate-pulse {
+    animation: pulse-op 1.5s infinite ease-in-out;
+}
+
+@keyframes pulse-op {
+    0% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+
+    100% {
+        opacity: 1;
+    }
+}

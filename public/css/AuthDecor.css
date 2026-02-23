@@ -1,0 +1,187 @@
+/* --- Premium Background Decorations --- */
+
+:root {
+    --uma-green-soft: rgba(1, 131, 57, 0.12);
+    --uma-gold-soft: rgba(230, 190, 67, 0.15);
+    --uma-blue-soft: rgba(11, 47, 230, 0.1);
+    --joy-purple: #0B2FE6;
+    /* Mapped to Blue */
+    --joy-yellow: #E6BE43;
+    --joy-blue: #018339;
+    --joy-cyan: #0EA5E9;
+}
+
+.auth-form-section {
+    background-color: #f0fbfd !important;
+    /* Base color clean */
+    overflow: hidden;
+}
+
+/* Glass Card for the Form */
+.auth-card {
+    background: rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(25px) saturate(180%);
+    -webkit-backdrop-filter: blur(25px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-radius: 24px;
+    padding: 2rem;
+    box-shadow:
+        0 40px 100px -20px rgba(0, 0, 0, 0.05),
+        0 20px 40px -15px rgba(0, 0, 0, 0.03);
+}
+
+/* Mesh Background for Texture */
+.decor-mesh {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image:
+        radial-gradient(at 0% 0%, var(--uma-green-soft) 0px, transparent 50%),
+        radial-gradient(at 100% 0%, var(--uma-gold-soft) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, var(--uma-green-soft) 0px, transparent 50%),
+        radial-gradient(at 0% 100%, var(--uma-gold-soft) 0px, transparent 50%);
+    z-index: 1;
+    pointer-events: none;
+}
+
+/* Abstract Blobs */
+.decor-blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    z-index: 2;
+    pointer-events: none;
+    opacity: 0.6;
+    animation: blobFloat 20s infinite ease-in-out;
+}
+
+.decor-blob-1 {
+    width: 400px;
+    height: 400px;
+    background: rgba(247, 37, 133, 0.15);
+    /* Joy Purple */
+    top: -100px;
+    right: -100px;
+}
+
+.decor-blob-2 {
+    width: 350px;
+    height: 350px;
+    background: rgba(254, 228, 64, 0.1);
+    /* Joy Yellow */
+    bottom: -50px;
+    left: -50px;
+    animation-delay: -5s;
+}
+
+.decor-blob-3 {
+    width: 300px;
+    height: 300px;
+    background: rgba(1, 131, 57, 0.1);
+    top: 30%;
+    left: 10%;
+    animation-duration: 25s;
+    animation-delay: -2s;
+}
+
+/* Individual Floating Elements */
+.decor-elem {
+    position: absolute;
+    pointer-events: none;
+    z-index: 3;
+}
+
+.decor-circle-1 {
+    width: 120px;
+    height: 120px;
+    background: linear-gradient(135deg, var(--joy-yellow), transparent);
+    border-radius: 50%;
+    top: 10%;
+    right: 15%;
+    opacity: 0.1;
+    animation: floatSimple 8s ease-in-out infinite;
+}
+
+.decor-triangle-1 {
+    width: 0;
+    height: 0;
+    border-left: 30px solid transparent;
+    border-right: 30px solid transparent;
+    border-bottom: 50px solid #4CC9F0;
+    /* Joy Cyan */
+    top: 25%;
+    left: 15%;
+    opacity: 0.12;
+    transform: rotate(25deg);
+    animation: floatSimple 12s ease-in-out infinite reverse;
+}
+
+/* Dots Patterns */
+.decor-dots-1 {
+    width: 150px;
+    height: 150px;
+    background-image: radial-gradient(var(--joy-blue) 2px, transparent 2px);
+    background-size: 20px 20px;
+    bottom: 8%;
+    left: 8%;
+    opacity: 0.15;
+}
+
+.decor-dots-2 {
+    width: 120px;
+    height: 120px;
+    background-image: radial-gradient(var(--joy-yellow) 2px, transparent 2px);
+    background-size: 15px 15px;
+    top: 15%;
+    right: 20%;
+    opacity: 0.2;
+}
+
+/* Animations */
+@keyframes blobFloat {
+
+    0%,
+    100% {
+        transform: translate(0, 0) scale(1);
+    }
+
+    33% {
+        transform: translate(30px, -50px) scale(1.1);
+    }
+
+    66% {
+        transform: translate(-20px, 20px) scale(0.9);
+    }
+}
+
+@keyframes floatSimple {
+
+    0%,
+    100% {
+        transform: translateY(0) rotate(0deg);
+    }
+
+    50% {
+        transform: translateY(-20px) rotate(10deg);
+    }
+}
+
+/* LOGIN SPECIFIC OVERRIDES */
+body.auth-page {
+    background-color: #f0fbfd !important;
+}
+
+.auth-page .footer {
+    display: none !important;
+}
+
+.auth-page .app-container {
+    padding: 0 !important;
+    gap: 0 !important;
+}
+
+.brand-logo-login {
+    height: 60px;
+}

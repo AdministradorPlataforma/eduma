@@ -1,0 +1,198 @@
+/* Gestion View Specific Styles - Premium Redesign */
+
+/* Glass Panel Enhancements */
+.glass-panel {
+    background: rgba(255, 255, 255, 0.82);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.04), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
+    border-radius: 24px;
+}
+
+/* Typography & Labels */
+.text-slate {
+    color: var(--slate-text);
+}
+
+.text-slate-muted {
+    color: var(--slate-muted);
+}
+
+/* Status Badges */
+.badge-status {
+    font-size: 0.7rem;
+    letter-spacing: 0.5px;
+    padding: 0.5em 1em;
+    font-weight: 700;
+}
+
+.badge-status.success {
+    background: rgba(16, 185, 129, 0.1);
+    /* Mint */
+    color: #059669;
+}
+
+.badge-status.warning {
+    background: rgba(245, 158, 11, 0.1);
+    /* Amber */
+    color: #d97706;
+}
+
+.badge-status.danger {
+    background: rgba(244, 63, 94, 0.1);
+    /* Rose */
+    color: #e11d48;
+}
+
+/* Semaphore Bubbles */
+.semaphore-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 6px;
+    display: inline-block;
+}
+
+.semaphore-dot.success {
+    background-color: #10b981;
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+}
+
+.semaphore-dot.warning {
+    background-color: #f59e0b;
+    box-shadow: 0 0 8px rgba(245, 158, 11, 0.4);
+}
+
+.semaphore-dot.danger {
+    background-color: #f43f5e;
+    box-shadow: 0 0 8px rgba(244, 63, 94, 0.4);
+}
+
+/* Buttons */
+
+.btn-completed {
+    background: rgba(241, 245, 249, 0.8);
+    color: #059669;
+    border: 1px solid rgba(16, 185, 129, 0.1);
+    font-size: 0.8rem;
+    font-weight: 700;
+    pointer-events: none;
+    border-radius: 12px;
+}
+
+/* Icon Squares */
+.icon-sq-lg {
+    width: 64px;
+    height: 64px;
+    border-radius: 20px;
+    font-size: 1.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.icon-sq-md {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    font-size: 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.icon-sq-sm {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Table Enhancements */
+.table-premium {
+    border-collapse: separate;
+    border-spacing: 0 8px;
+}
+
+.table-premium thead th {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #64748b;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    padding-bottom: 1rem;
+}
+
+.table-premium tbody tr {
+    background: #ffffff;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.01);
+    border-radius: 16px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.table-premium tbody tr:hover {
+    transform: translateY(-2px) scale(1.002);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.04);
+}
+
+.table-premium td {
+    border: none;
+    padding: 1.25rem;
+    vertical-align: middle;
+}
+
+.table-premium td:first-child {
+    border-top-left-radius: 16px;
+    border-bottom-left-radius: 16px;
+}
+
+.table-premium td:last-child {
+    border-top-right-radius: 16px;
+    border-bottom-right-radius: 16px;
+}
+
+/* Empty State */
+.empty-state-card {
+    background: rgba(255, 255, 255, 0.4);
+    border: 2px dashed rgba(203, 213, 225, 0.6);
+    border-radius: 24px;
+    padding: 3rem;
+    text-align: center;
+}
+
+/* Animations */
+.animate-bounce-soft {
+    animation: bounceSoft 2s infinite;
+}
+
+@keyframes bounceSoft {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-8px);
+    }
+}
+
+/* Utilities */
+.bg-soft-indigo {
+    background: rgba(99, 102, 241, 0.1);
+    color: #6366f1;
+}
+
+.bg-soft-rose {
+    background: rgba(244, 63, 94, 0.1);
+    color: #f43f5e;
+}
+
+.bg-soft-mint {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+}

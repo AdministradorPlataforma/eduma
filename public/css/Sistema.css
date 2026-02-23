@@ -1,0 +1,128 @@
+/* Sistema.css - Estilos específicos para el panel de mantenimiento */
+
+.system-banner {
+    background: linear-gradient(135deg, #0B2FE6 0%, #4F46E5 100%);
+    border-radius: 35px;
+    padding: 3rem;
+    position: relative;
+    overflow: hidden;
+    color: white;
+    margin-bottom: 2.5rem;
+    box-shadow: 0 20px 40px rgba(11, 47, 230, 0.15);
+}
+
+.system-banner::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -10%;
+    width: 400px;
+    height: 400px;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+    border-radius: 50%;
+}
+
+.glass-card-system {
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 28px;
+    transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+}
+
+.glass-card-system:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.12);
+    border-color: var(--accent-indigo);
+}
+
+.status-badge-pulse {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #10b981;
+    display: inline-block;
+    box-shadow: 0 0 10px #10b981;
+    animation: pulse-status 2s infinite;
+    margin-right: 8px;
+}
+
+@keyframes pulse-status {
+    0% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+    }
+
+    70% {
+        transform: scale(1);
+        box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
+    }
+
+    100% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+    }
+}
+
+.btn-outline-indigo {
+    color: #4F46E5;
+    border: 2px solid #4F46E5;
+    background: transparent;
+    transition: all 0.3s ease;
+}
+
+.btn-outline-indigo:hover {
+    background: #4F46E5;
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(79, 70, 229, 0.2);
+}
+
+.bg-gradient-indigo {
+    background: linear-gradient(90deg, #4F46E5, #0B2FE6) !important;
+}
+
+.bg-gradient-rose {
+    background: linear-gradient(90deg, #e6007e, #dc3545) !important;
+}
+
+.bg-gradient-amber {
+    background: linear-gradient(90deg, #f59e0b, #fbbf24) !important;
+}
+
+.progress {
+    background-color: rgba(0, 0, 0, 0.05);
+    border-radius: 10px;
+}
+
+.text-xs {
+    font-size: 0.75rem;
+}
+
+.text-xxs {
+    font-size: 0.65rem;
+}
+
+.fw-900 {
+    font-weight: 900;
+}
+
+.fw-800 {
+    font-weight: 800;
+}
+
+.fw-700 {
+    font-weight: 700;
+}
+
+.tracking-wide {
+    letter-spacing: 0.05em;
+}
+
+.bg-soft-indigo {
+    background-color: rgba(79, 70, 229, 0.1) !important;
+}
+
+.text-indigo {
+    color: #4F46E5 !important;
+}

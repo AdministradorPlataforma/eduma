@@ -1,0 +1,200 @@
+/* ListarInvestigacion View Specific Styles - Hyper Premium Design */
+
+/* Utility for Header Icon */
+.bg-soft-indigo {
+    background: rgba(99, 102, 241, 0.1) !important;
+    color: var(--accent-indigo) !important;
+}
+
+.icon-sq {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+}
+
+/* 1. Glass Panel Refinement */
+.glass-panel {
+    background: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.04);
+    box-shadow: 0 25px 50px -12px rgba(64, 70, 74, 0.08);
+    border-radius: 32px;
+}
+
+/* 2. Avatar Card */
+.avatar-soft-wrap {
+    padding: 4px;
+    background: #ffffff;
+    border-radius: 20px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.06), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
+    border: 1px solid rgba(0, 0, 0, 0.02);
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.avatar-initials {
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #0B2FE6 0%, #4F46E5 100%);
+    color: #ffffff;
+    font-weight: 800;
+    font-size: 1.1rem;
+    box-shadow: 0 8px 16px -4px rgba(11, 47, 230, 0.4);
+    text-shadow: 0 2px 2px rgba(0, 0, 0, 0.1);
+}
+
+tr:hover .avatar-soft-wrap {
+    transform: scale(1.1) rotate(3deg);
+}
+
+/* 3. Typography Hierarchy */
+.text-slate {
+    color: #1e293b;
+    letter-spacing: -0.015em;
+}
+
+/* 4. Rich Status Badges */
+.badge-status {
+    padding: 0.5em 1.2em;
+    border-radius: 12px;
+    font-weight: 800;
+    font-size: 0.7rem;
+    letter-spacing: 0.05em;
+    border: 1px solid transparent;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    text-transform: uppercase;
+}
+
+.badge-status.aprobada {
+    background: rgba(16, 185, 129, 0.1);
+    color: #059669;
+    border-color: rgba(16, 185, 129, 0.15);
+}
+
+.badge-status.rechazada {
+    background: rgba(239, 68, 68, 0.1);
+    color: #dc2626;
+    border-color: rgba(239, 68, 68, 0.15);
+}
+
+.badge-status.pendiente {
+    background: rgba(245, 158, 11, 0.1);
+    color: #d97706;
+    border-color: rgba(245, 158, 11, 0.15);
+}
+
+/* 5. Action Buttons */
+.btn-action-group {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+.btn-action-round {
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    border: 1px solid transparent;
+    background: #f8fafc;
+    color: #64748b;
+}
+
+.btn-action-round:hover {
+    background: #ffffff;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    transform: translateY(-2px);
+    color: var(--accent-indigo);
+}
+
+/* 6. Table Polish */
+.table-premium {
+    border-collapse: separate;
+    border-spacing: 0 12px;
+    margin-top: -12px;
+}
+
+.table-premium tbody tr {
+    background: #ffffff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.01);
+    transition: all 0.3s ease;
+}
+
+.table-premium tbody tr:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 15px 30px -10px rgba(0, 0, 0, 0.05);
+    position: relative;
+    z-index: 10;
+}
+
+.table-premium td {
+    padding: 1.25rem 1.5rem !important;
+    vertical-align: middle;
+    border-top: 1px solid rgba(241, 245, 249, 0.5);
+    border-bottom: 1px solid rgba(241, 245, 249, 0.5);
+}
+
+.table-premium td:first-child {
+    border-left: 1px solid rgba(241, 245, 249, 0.5);
+    border-top-left-radius: 20px;
+    border-bottom-left-radius: 20px;
+}
+
+.table-premium td:last-child {
+    border-right: 1px solid rgba(241, 245, 249, 0.5);
+    border-top-right-radius: 20px;
+    border-bottom-right-radius: 20px;
+}
+
+.table-premium thead th {
+    padding: 0 1.5rem 1rem 1.5rem;
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #94a3b8;
+    font-weight: 700;
+    border: none;
+}
+
+/* 7. Document Link */
+.doc-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: rgba(99, 102, 241, 0.05);
+    color: var(--accent-indigo);
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.doc-link:hover {
+    background: rgba(99, 102, 241, 0.1);
+    color: var(--accent-indigo);
+    transform: translateY(-1px);
+}
+
+/* DataTables Processing */
+.dataTables_processing {
+    background: rgba(255, 255, 255, 0.95) !important;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1) !important;
+    border-radius: 12px !important;
+    padding: 20px !important;
+    font-weight: 600;
+    color: var(--accent-indigo);
+}

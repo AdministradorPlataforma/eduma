@@ -1,0 +1,518 @@
+/* auth.css - Jovial University Theme */
+
+:root {
+    /* Colors extracted from the new Image */
+    --joy-bg-teal: #018339;
+    /* Royal Blue Background */
+    --joy-bg-light: #EBF4FF;
+    /* Light Blue for body */
+    --joy-purple: #F72585;
+    /* Vibrant Pink/Purple */
+    --joy-yellow: #FEE440;
+    /* Bright Yellow */
+    --joy-blue: #018339;
+    /* Cyan */
+    --joy-dark: #2B2D42;
+    /* Dark Navy for Text */
+    --joy-bg: #F0FBFD;
+    /* Very light cyan for body bg */
+}
+
+body,
+html {
+    height: 100%;
+    margin: 0;
+    font-family: 'Outfit', 'Inter', sans-serif;
+    /* Outfit is very friendly/rounded */
+    overflow-x: hidden;
+    background-color: var(--joy-bg);
+    color: var(--joy-dark);
+    overflow: hidden;
+    /* NO SCROLL GLOBAL */
+}
+
+/* Utils */
+.fw-bold {
+    font-weight: 700 !important;
+}
+
+.fw-medium {
+    font-weight: 500 !important;
+}
+
+.text-joy-blue {
+    color: var(--joy-blue) !important;
+}
+
+/* Utils Fixed - Top Level */
+.max-w-550 {
+    max-width: 550px !important;
+}
+
+.max-w-420 {
+    max-width: 420px !important;
+}
+
+.mx-auto {
+    margin-left: auto !important;
+    margin-right: auto !important;
+}
+
+.z-5 {
+    z-index: 5 !important;
+}
+
+.captcha-field-compact {
+    padding-top: 0.6rem !important;
+    padding-bottom: 0.6rem !important;
+    height: 38px !important;
+    margin-bottom: 0 !important;
+}
+
+.captcha-input {
+    letter-spacing: 2px;
+    font-weight: bold;
+}
+
+.captcha-img-styled {
+    cursor: pointer;
+    height: 38px;
+    border: 2px solid #eef2f7;
+    object-fit: contain;
+    transition: transform 0.2s;
+    border-radius: 12px;
+}
+
+.captcha-img-styled:hover {
+    transform: scale(1.02);
+}
+
+.captcha-img-styled:active {
+    transform: scale(0.98);
+}
+
+/* Layout */
+.auth-container {
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+    background-color: var(--joy-bg);
+    /* background-image removed to avoid visual clutter/glitch */
+}
+
+.animate-fade-in {
+    animation: fadeIn 0.8s ease-out forwards;
+    opacity: 0;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* --- Left Side: Form --- */
+/* --- Left Side: Form --- */
+.auth-form-section {
+    height: 100vh;
+    padding: 2rem 3rem;
+    /* Padding reducido */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    box-shadow: 20px 0 60px rgba(0, 0, 0, 0.05);
+    z-index: 10;
+    overflow-y: auto;
+    /* Scroll solo interno si es estrictamente necesario en pantallas muy bajas */
+}
+
+/* Scrollbar invisible para estética limpia */
+.auth-form-section::-webkit-scrollbar {
+    width: 0px;
+    background: transparent;
+}
+
+/* Logo Reverted */
+.brand-wrapper {
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    /* Separación interna */
+    border-bottom: 2px solid #E8EDF2;
+    /* Borde sutil como solicitado */
+    position: relative;
+    /* Just in case */
+}
+
+/* Logo Centered */
+.brand-logo {
+    height: 78px;
+    /* Un poco más grande al estar centrado */
+    width: auto;
+    display: block;
+    /* margin: 0 auto; handled by mx-auto utility */
+    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.05));
+    /* margin-bottom removed internal to wrapper handling */
+}
+
+.welcome-title {
+    font-size: 2.5rem;
+    color: var(--joy-dark);
+    line-height: 1.1;
+    margin-bottom: 0.5rem;
+    letter-spacing: -0.02em;
+}
+
+.welcome-emoji {
+    font-size: 2.5rem;
+    animation: wave 2s infinite;
+    display: inline-block;
+    transform-origin: 70% 70%;
+}
+
+@keyframes wave {
+    0% {
+        transform: rotate(0.0deg)
+    }
+
+    10% {
+        transform: rotate(14.0deg)
+    }
+
+    20% {
+        transform: rotate(-8.0deg)
+    }
+
+    30% {
+        transform: rotate(14.0deg)
+    }
+
+    40% {
+        transform: rotate(-4.0deg)
+    }
+
+    50% {
+        transform: rotate(10.0deg)
+    }
+
+    60% {
+        transform: rotate(0.0deg)
+    }
+
+    100% {
+        transform: rotate(0.0deg)
+    }
+}
+
+.welcome-sub {
+    color: #5F7D8B;
+    font-size: 1rem;
+    margin-bottom: 1.5rem;
+    /* Un poco menos margen */
+}
+
+/* Inputs */
+.modern-label {
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--joy-dark);
+    margin-bottom: 0.4rem;
+    display: block;
+}
+
+.joy-input {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 2px solid #E8EDF2;
+    border-radius: 12px;
+    background: #F9FAFC;
+    font-size: 0.95rem;
+    color: var(--joy-dark);
+    transition: all 0.2s;
+    margin-bottom: 0.75rem;
+    /* Compact inputs */
+}
+
+.joy-input:focus {
+    border-color: var(--joy-blue);
+    background: #fff;
+    box-shadow: 0 0 0 4px rgba(17, 138, 178, 0.15);
+    outline: none;
+}
+
+/* Button */
+.btn-joy {
+    background-color: var(--joy-blue);
+    color: white;
+    width: 80%;
+    padding: 0.8rem;
+    border-radius: 12px;
+    border: none;
+    font-weight: 700;
+    font-size: 1rem;
+    margin-top: 1.5rem;
+    display: block;
+    /* Asegurar bloque para margen auto */
+    margin-left: auto;
+    margin-right: auto;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    /* Bouncy */
+    box-shadow: 0 4px 14px rgba(17, 138, 178, 0.4);
+    text-align: center;
+}
+
+.btn-joy:hover {
+    transform: translateY(-3px);
+    background-color: #0d799e;
+    box-shadow: 0 6px 20px rgba(17, 138, 178, 0.5);
+}
+
+/* Links */
+.link-joy {
+    color: var(--joy-blue);
+    font-weight: 600;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.link-joy:hover {
+    color: var(--joy-pink);
+}
+
+/* --- Right Side: Visual --- */
+.auth-visual-section {
+    position: relative;
+    /* Seamless transition with the image background */
+    background-color: var(--joy-bg-teal);
+    /* background: radial-gradient(circle at center, #80E8DD 0%, #4CC9F0 100%); */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+/* Fun Blobs - Now matching geometric forms */
+.fun-blob {
+    position: absolute;
+    opacity: 0.8;
+    z-index: 1;
+}
+
+.blob-yellow {
+    /* Yellow Circle */
+    width: 120px;
+    height: 120px;
+    background: var(--joy-yellow);
+    border-radius: 50%;
+    top: 10%;
+    right: 10%;
+    filter: none;
+    animation: blobFloat 8s infinite ease-in-out;
+}
+
+.blob-green {
+    /* Pink Wave/Triangle approximation */
+    width: 0;
+    height: 0;
+    background: transparent;
+    border-left: 60px solid transparent;
+    border-right: 60px solid transparent;
+    border-bottom: 100px solid var(--joy-purple);
+    border-radius: 10px;
+    bottom: 15%;
+    left: 10%;
+    filter: none;
+    transform: rotate(-15deg);
+    animation: blobFloat 10s infinite ease-in-out reverse;
+}
+
+@keyframes blobFloat {
+    0% {
+        transform: translateY(0) scale(1);
+    }
+
+    100% {
+        transform: translateY(20px) scale(1.1);
+    }
+}
+
+.illustration-img {
+    width: 100%;
+    /* max-width: 900px; - REMOVED to fill full width always */
+    height: 100%;
+    object-fit: cover;
+    /* Cover para llenar el espacio sin bordes */
+    z-index: 2;
+    /* filter: drop-shadow(0 20px 40px rgba(0,0,0,0.1)); */
+    border-radius: 0;
+    /* Removing border radius to blend seamless */
+}
+
+.pill-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.4rem 1rem;
+    border-radius: 50px;
+    background: #FFF3CD;
+    color: #856404;
+    font-weight: 700;
+    font-size: 0.8rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+}
+
+/* Background Blob Hack if needed behind image */
+.auth-visual-section::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 90%;
+    height: 90%;
+    background: var(--brand-purple);
+    filter: blur(100px);
+    opacity: 0.2;
+    z-index: 0;
+}
+
+/* Generic Card Style */
+.floating-card {
+    position: absolute;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 20px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    color: white;
+    transition: all 0.3s;
+}
+
+/* Specific Cards */
+.card-id {
+    width: 320px;
+    height: 200px;
+    top: 40px;
+    left: 40px;
+    z-index: 3;
+    padding: 20px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05));
+    animation: floatMain 6s ease-in-out infinite;
+    border-left: 4px solid var(--uma-gold);
+}
+
+.card-stats {
+    width: 180px;
+    height: 180px;
+    top: -40px;
+    right: 0;
+    z-index: 2;
+    background: linear-gradient(135deg, var(--uma-green), #059669);
+    opacity: 0.9;
+    padding: 20px;
+    border: none;
+    animation: floatDelayed 7s ease-in-out infinite;
+}
+
+.card-notify {
+    width: 260px;
+    height: 80px;
+    bottom: 20px;
+    right: -20px;
+    z-index: 4;
+    background: white;
+    color: #333;
+    display: flex;
+    align-items: center;
+    padding: 15px;
+    border-radius: 16px;
+    animation: floatReverse 8s ease-in-out infinite;
+}
+
+/* Animations */
+@keyframes floatMain {
+
+    0%,
+    100% {
+        transform: translateY(0) rotate(0deg);
+    }
+
+    50% {
+        transform: translateY(-20px) rotate(1deg);
+    }
+}
+
+@keyframes floatDelayed {
+
+    0%,
+    100% {
+        transform: translateY(0) translateX(0);
+    }
+
+    50% {
+        transform: translateY(15px) translateX(-10px);
+    }
+}
+
+@keyframes floatReverse {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(10px);
+    }
+}
+
+@keyframes pulseBg {
+    0% {
+        transform: scale(1);
+    }
+
+    100% {
+        transform: scale(1.1);
+    }
+}
+
+/* Typography & Decorative */
+.holo-strip {
+    height: 40px;
+    width: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+    position: absolute;
+    top: 30%;
+    left: -50px;
+    transform: rotate(-15deg);
+    pointer-events: none;
+}
+
+.stat-bar {
+    height: 6px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
+    margin-top: 10px;
+    overflow: hidden;
+}
+
+.stat-fill {
+    height: 100%;
+    background: var(--uma-gold);
+    width: 0;
+    animation: fillBar 1.5s ease-out forwards 0.5s;
+}
+
+@keyframes fillBar {
+    to {
+        width: 75%;
+    }
+}

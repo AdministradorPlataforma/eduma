@@ -1,0 +1,28 @@
+<?php
+
+// CLI Entry Point
+if (php_sapi_name() !== 'cli') {
+    exit;
+}
+
+require_once __DIR__ . '/../vendor/autoload.php';
+
+// Cargar Entorno
+\Config\Env::load();
+
+// Simple Command Router
+$command = $argv[1] ?? 'help';
+
+switch ($command) {
+    case 'queue:work':
+        (new \App\Commands\QueueWorkerCommand())->execute();
+        break;
+        
+    case 'help':
+    default:
+        echo "EDUMA V2 Console\n";
+        echo "Uso: php bin/console <command>\n\n";
+        echo "Comandos disponibles:\n";
+        echo "  queue:work    Inicia el worker de colas\n";
+        break;
+}

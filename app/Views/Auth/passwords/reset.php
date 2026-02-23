@@ -1,0 +1,51 @@
+<?php 
+$bodyClass = 'auth-page';
+include_once __DIR__ . '/../../Layouts/Header.php'; 
+?>
+<link rel="stylesheet" href="<?= BASE_URL ?>css/AuthDecor.css">
+
+<main class="auth-container container-fluid p-0 overflow-hidden">
+    <div class="row g-0 vh-100">
+        
+        <div class="col-lg-12 auth-form-section animate-fade-in d-flex align-items-center justify-content-center position-relative overflow-hidden">
+            <div class="decor-mesh"></div>
+            <div class="decor-blob decor-blob-2"></div>
+            
+            <div class="w-90 position-relative max-w-420 z-5 auth-card animate-soft-reveal">
+                
+                <div class="brand-wrapper mb-4 text-center">
+                    <img src="<?= BASE_URL ?>images/uma-completo.png?v=<?= time() ?>" alt="UMA Logo" class="brand-logo img-fluid mb-2 mx-auto brand-logo-login" style="max-height: 80px;">
+                    <h5 class="fw-bold text-slate mt-2">Nueva Contraseña</h5>
+                    <p class="text-muted small">Crea una contraseña segura para tu cuenta.</p>
+                </div>
+
+                <?= \App\Helpers\FlashHelper::alert('error'); ?>
+                <?= \App\Helpers\FlashHelper::alert('success'); ?>
+
+                <form action="<?= BASE_URL ?>password/reset" method="POST" class="mt-4">
+                    <input type="hidden" name="csrf_token" value="<?= $csrf_token ?>">
+                    <input type="hidden" name="token" value="<?= $token ?>">
+                    <input type="hidden" name="email" value="<?= htmlspecialchars($email) ?>">
+
+                    <div class="mb-3">
+                        <label class="modern-label">Nueva Contraseña</label>
+                        <input type="password" name="password" class="joy-input" placeholder="Mínimo 8 caracteres" required autofocus>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="modern-label">Confirmar Contraseña</label>
+                        <input type="password" name="password_confirmation" class="joy-input" placeholder="Repite la contraseña" required>
+                    </div>
+
+                    <button type="submit" class="btn btn-premium-primary btn-round w-100 py-3 mb-3">
+                        <i class="bi bi-shield-lock-fill me-2"></i> Actualizar Contraseña
+                    </button>
+                </form>
+
+            </div>
+        </div>
+
+    </div>
+</main>
+
+<?php include_once __DIR__ . '/../../Layouts/Footer.php'; ?>

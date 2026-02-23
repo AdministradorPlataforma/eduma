@@ -1,0 +1,214 @@
+/* AdminTareas View Specific Styles - Premium Redesign */
+
+/* Glass Panel Base Override */
+.glass-panel {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.05);
+    border-radius: 24px;
+}
+
+/* Typography & Labels */
+.label-tracking {
+    letter-spacing: 0.08em;
+    font-size: 0.65rem;
+    color: #64748b;
+    /* Slate 500 */
+}
+
+/* Form Controls */
+.form-control,
+.form-select {
+    background-color: #f8fafc !important;
+    /* Slate 50 */
+    border: 2px solid transparent !important;
+    color: #334155;
+    /* Slate 700 */
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.form-control:focus,
+.form-select:focus {
+    background-color: #ffffff !important;
+    border-color: rgba(99, 102, 241, 0.4) !important;
+    /* Indigo */
+    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1) !important;
+    transform: translateY(-2px);
+}
+
+.form-control::placeholder {
+    color: #94a3b8;
+    /* Slate 400 */
+    font-weight: 500;
+}
+
+
+/* Table Styling */
+.table-premium {
+    border-collapse: separate;
+    border-spacing: 0 8px;
+}
+
+.table-premium tbody tr {
+    transition: all 0.2s ease;
+    background: #ffffff;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.02);
+    border-radius: 12px;
+}
+
+.table-premium tbody tr td {
+    border: none;
+    vertical-align: middle;
+    padding: 1.25rem 1.5rem;
+}
+
+.table-premium tbody tr td:first-child {
+    border-top-left-radius: 12px;
+    border-bottom-left-radius: 12px;
+}
+
+.table-premium tbody tr td:last-child {
+    border-top-right-radius: 12px;
+    border-bottom-right-radius: 12px;
+}
+
+.table-premium tbody tr:hover {
+    transform: scale(1.005);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
+    z-index: 10;
+    position: relative;
+}
+
+/* Badges */
+.badge-cargo {
+    font-size: 0.7rem;
+    letter-spacing: 0.5px;
+    background: #f1f5f9 !important;
+    /* Slate 100 */
+    color: #475569 !important;
+    /* Slate 600 */
+}
+
+/* Action Buttons */
+.btn-delete-task-round {
+    width: 36px;
+    height: 36px;
+    background: #fff1f2 !important;
+    /* Rose 50 */
+    color: #f43f5e !important;
+    /* Rose 500 */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+}
+
+.btn-delete-task-round:hover {
+    background: #f43f5e !important;
+    color: #ffffff !important;
+    transform: rotate(90deg);
+    box-shadow: 0 5px 15px rgba(244, 63, 94, 0.3);
+}
+
+/* Icons */
+.icon-sq {
+    width: 48px;
+    height: 48px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+}
+
+.bg-soft-indigo {
+    background: rgba(99, 102, 241, 0.1);
+}
+
+.text-indigo {
+    color: #6366f1;
+}
+
+.bg-soft-rose {
+    background: rgba(244, 63, 94, 0.1);
+}
+
+.text-rose {
+    color: #f43f5e;
+}
+
+/* Stat Cards (For Future Use) */
+.stat-card {
+    background: white;
+    border-radius: 20px;
+    padding: 1.5rem;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.03);
+    transition: transform 0.3s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+}
+
+.label-tracking {
+    letter-spacing: 1px;
+}
+
+.btn-assign {
+    background: linear-gradient(135deg, var(--accent-indigo), var(--accent-violet)) !important;
+    font-size: 11px;
+    transition: all 0.3s ease;
+}
+
+.badge-cargo {
+    font-size: 10px;
+}
+
+.btn-delete-task-round {
+    width: 32px;
+    height: 32px;
+    background: rgba(253, 164, 175, 0.1) !important;
+    color: var(--accent-rose) !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.btn-delete-task-round:hover {
+    background: rgba(253, 164, 175, 0.2) !important;
+    transform: scale(1.1);
+}
+
+#server-data {
+    display: none;
+}
+
+.bg-soft-indigo {
+    background: rgba(99, 102, 241, 0.08);
+}
+
+.bg-soft-rose {
+    background: rgba(244, 63, 94, 0.08);
+}
+
+.icon-sq {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.text-indigo {
+    color: var(--accent-indigo);
+}
+
+.text-rose {
+    color: var(--accent-rose);
+}
