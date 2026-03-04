@@ -216,14 +216,16 @@ abstract class BaseModel {
      */
     protected function filterData(array $data): array {
         if (empty($this->allowedFields)) {
-            return $data; // Si no se define nada, pasamos todo (¡Cuidado!)
+            return $data;
         }
         
-        return array_filter(
-            $data,
-            fn($key) => in_array($key, $this->allowedFields),
-            ARRAY_FILTER_USE_KEY
-        );
+        $filtered = [];
+        foreach ($data as $key => $value) {
+            if (in_array($key, $this->allowedFields)) {
+                $filtered[$key] = $value;
+            }
+        }
+        return $filtered;
     }
 
     /**

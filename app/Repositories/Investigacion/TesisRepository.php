@@ -21,24 +21,26 @@ class TesisRepository {
 
 
 
-    public function create(array $data, array $estudiantesIds, array $docentesIds): int {
+    public function create(array $data, array $estudiantes, array $docentes): int {
         $tesisId = $this->model->create($data);
 
-        // Guardar Estudiantes (IDs)
-        $stmtEst = $this->db->prepare("INSERT INTO tesis_estudiantes (tesis_id, estudiante_id) VALUES (:tesis_id, :estudiante_id)");
-        foreach ($estudiantesIds as $estId) {
+        // Guardar Estudiantes (Manual nombres)
+        $stmtEst = $this->db->prepare("INSERT INTO tesis_estudiantes (tesis_id, nombre) VALUES (:tesis_id, :nombre)");
+        foreach ($estudiantes as $nombre) {
+            if (empty($nombre)) continue;
             $stmtEst->execute([
                 ':tesis_id' => $tesisId, 
-                ':estudiante_id' => $estId
+                ':nombre' => $nombre
             ]);
         }
 
-        // Guardar Docentes (IDs)
-        $stmtDoc = $this->db->prepare("INSERT INTO tesis_docentes (tesis_id, docente_id, rol) VALUES (:tesis_id, :docente_id, :rol)");
-        foreach ($docentesIds as $docId) {
+        // Guardar Docentes (Manual nombres)
+        $stmtDoc = $this->db->prepare("INSERT INTO tesis_docentes (tesis_id, nombre, rol) VALUES (:tesis_id, :nombre, :rol)");
+        foreach ($docentes as $nombre) {
+            if (empty($nombre)) continue;
             $stmtDoc->execute([
                 ':tesis_id' => $tesisId, 
-                ':docente_id' => $docId,
+                ':nombre' => $nombre,
                 ':rol' => 'Tutor' // Default role for now
             ]);
         }
@@ -46,27 +48,29 @@ class TesisRepository {
         return $tesisId;
     }
 
-    public function update(int $id, array $data, ?array $estudiantesIds = null, ?array $docentesIds = null): bool {
+    public function update(int $id, array $data, ?array $estudiantes = null, ?array $docentes = null): bool {
         $updated = $this->model->update($id, $data);
 
-        if ($estudiantesIds !== null) {
+        if ($estudiantes !== null) {
             $this->db->prepare("DELETE FROM tesis_estudiantes WHERE tesis_id = :id")->execute([':id' => $id]);
-            $stmt = $this->db->prepare("INSERT INTO tesis_estudiantes (tesis_id, estudiante_id) VALUES (:tesis_id, :estudiante_id)");
-            foreach ($estudiantesIds as $estId) {
+            $stmt = $this->db->prepare("INSERT INTO tesis_estudiantes (tesis_id, nombre) VALUES (:tesis_id, :nombre)");
+            foreach ($estudiantes as $nombre) {
+                if (empty($nombre)) continue;
                  $stmt->execute([
                     ':tesis_id' => $id, 
-                    ':estudiante_id' => $estId
+                    ':nombre' => $nombre
                 ]);
             }
         }
 
-        if ($docentesIds !== null) {
+        if ($docentes !== null) {
             $this->db->prepare("DELETE FROM tesis_docentes WHERE tesis_id = :id")->execute([':id' => $id]);
-            $stmt = $this->db->prepare("INSERT INTO tesis_docentes (tesis_id, docente_id, rol) VALUES (:tesis_id, :docente_id, :rol)");
-            foreach ($docentesIds as $docId) {
+            $stmt = $this->db->prepare("INSERT INTO tesis_docentes (tesis_id, nombre, rol) VALUES (:tesis_id, :nombre, :rol)");
+            foreach ($docentes as $nombre) {
+                if (empty($nombre)) continue;
                 $stmt->execute([
                     ':tesis_id' => $id, 
-                    ':docente_id' => $docId,
+                    ':nombre' => $nombre,
                     ':rol' => 'Tutor'
                 ]);
             }
@@ -89,8 +93,8 @@ class TesisRepository {
 
         // 2. Obtener Data
         $sql = "SELECT t.*, 
-                         GROUP_CONCAT(DISTINCT CONCAT(u_est.nombre, ' ', u_est.apellido) SEPARATOR ' / ') as estudiantes_nombres,
-                         GROUP_CONCAT(DISTINCT CONCAT(u_doc.nombre, ' ', u_doc.apellido) SEPARATOR ' / ') as tutores_nombres
+                         GROUP_CONCAT(DISTINCT COALESCE(te.nombre, CONCAT(u_est.nombre, ' ', u_est.apellido)) SEPARATOR ' / ') as estudiantes_nombres,
+                         GROUP_CONCAT(DISTINCT COALESCE(td.nombre, CONCAT(u_doc.nombre, ' ', u_doc.apellido)) SEPARATOR ' / ') as tutores_nombres
                   FROM tesis t
                   LEFT JOIN tesis_estudiantes te ON t.id = te.tesis_id
                   LEFT JOIN estudiantes e ON te.estudiante_id = e.id
@@ -179,10 +183,10 @@ class TesisRepository {
     }
 
     public function getEstudiantesList(int $tesisId): array {
-        $sql = "SELECT te.*, e.id as estudiante_id, u.nombre, u.apellido, e.legajo 
+        $sql = "SELECT te.*, COALESCE(te.nombre, CONCAT(u.nombre, ' ', u.apellido)) as display_name
                 FROM tesis_estudiantes te
-                JOIN estudiantes e ON te.estudiante_id = e.id
-                JOIN usuarios u ON e.usuario_id = u.id
+                LEFT JOIN estudiantes e ON te.estudiante_id = e.id
+                LEFT JOIN usuarios u ON e.usuario_id = u.id
                 WHERE te.tesis_id = :id";
         
         $stmt = $this->db->prepare($sql);
@@ -191,10 +195,10 @@ class TesisRepository {
     }
 
     public function getDocentesList(int $tesisId): array {
-        $sql = "SELECT td.*, d.id as docente_id, u.nombre, u.apellido, d.titulo_profesional 
+        $sql = "SELECT td.*, COALESCE(td.nombre, CONCAT(u.nombre, ' ', u.apellido)) as display_name
                 FROM tesis_docentes td
-                JOIN docentes d ON td.docente_id = d.id
-                JOIN usuarios u ON d.usuario_id = u.id
+                LEFT JOIN docentes d ON td.docente_id = d.id
+                LEFT JOIN usuarios u ON d.usuario_id = u.id
                 WHERE td.tesis_id = :id";
 
         $stmt = $this->db->prepare($sql);

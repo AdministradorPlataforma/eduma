@@ -20,53 +20,12 @@ class InvestigacionController extends BaseController {
     private ExportService $exportService;
 
     /**
-     * Endpoint AJAX para buscar estudiantes o docentes (Select2)
+     * @deprecated El sistema ahora usa ingreso manual de nombres por petición del cliente.
      */
     public function buscarParticipantes() {
-        try {
-            $this->requireLogin();
-
-            $term = $_GET['q'] ?? '';
-            $type = $_GET['type'] ?? 'estudiante'; // estudiante | docente
-
-            if (strlen($term) < 2) {
-                echo json_encode(['results' => []]);
-                exit;
-            }
-
-            $results = [];
-            if ($type === 'estudiante') {
-                $data = $this->service->buscarEstudiantes($term);
-                foreach ($data as $item) {
-                    $legajo = $item['legajo'] ? " - Leg: {$item['legajo']}" : "";
-                    $username = $item['username'] ? " ({$item['username']})" : "";
-                    $results[] = [
-                        'id' => $item['id'],
-                        'text' => "{$item['apellido']}, {$item['nombre']}{$username}{$legajo}"
-                    ];
-                }
-            } else {
-                $data = $this->service->buscarDocentes($term);
-                foreach ($data as $item) {
-                    $titulo = $item['titulo_profesional'] ? " - {$item['titulo_profesional']}" : "";
-                    $username = $item['username'] ? " ({$item['username']})" : "";
-                    $results[] = [
-                        'id' => $item['id'],
-                        'text' => "{$item['apellido']}, {$item['nombre']}{$username}{$titulo}"
-                    ];
-                }
-            }
-
-            header('Content-Type: application/json');
-            echo json_encode(['results' => $results]);
-            exit;
-
-        } catch (\Exception $e) {
-            \App\Helpers\LoggerHelper::error($e, ['action' => 'buscar_participantes']);
-            header('Content-Type: application/json', true, 500);
-            echo json_encode(['error' => $e->getMessage()]);
-            exit;
-        }
+        header('Content-Type: application/json');
+        echo json_encode(['results' => []]);
+        exit;
     }
 
     /**
@@ -137,6 +96,7 @@ class InvestigacionController extends BaseController {
     }
 
     public function guardar() {
+        if (session_status() === PHP_SESSION_NONE) session_start();
         $this->requireLogin();
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -147,24 +107,48 @@ class InvestigacionController extends BaseController {
             $this->logSecurity("Fallo de validación CSRF en registro de tesis");
             $this->flash('error', 'Sesión de formulario expirada. Intente nuevamente.');
             $this->redirect('investigacion/registrar');
+            return;
         }
 
         try {
-            // Validate basic input
-            $val = ValidationHelper::make($_POST);
-            $val->rule('titulo', 'required|min:5');
-            
-            if (empty($_POST['estudiantes']) || !is_array($_POST['estudiantes'])) {
+            // Filtrar nombres vacíos manualmente (sin arrow functions)
+            $rawEstudiantes = $_POST['estudiantes'] ?? [];
+            $estudiantes = [];
+            if (is_array($rawEstudiantes)) {
+                foreach ($rawEstudiantes as $est) {
+                    $name = trim((string)$est);
+                    if ($name !== '') $estudiantes[] = $name;
+                }
+            }
+
+            $rawDocentes = $_POST['docentes'] ?? [];
+            $docentes = [];
+            if (is_array($rawDocentes)) {
+                foreach ($rawDocentes as $doc) {
+                    $name = trim((string)$doc);
+                    if ($name !== '') $docentes[] = $name;
+                }
+            }
+
+            if (empty($estudiantes)) {
                 $this->flash('error', 'Debe agregar al menos un estudiante.');
                 $this->redirect('investigacion/registrar');
                 return;
             }
-            if (empty($_POST['docentes']) || !is_array($_POST['docentes'])) {
+            if (empty($docentes)) {
                 $this->flash('error', 'Debe agregar al menos un docente (tutor/asesor).');
                 $this->redirect('investigacion/registrar');
                 return;
             }
 
+            // Actualizar POST para el DTO
+            $_POST['estudiantes'] = $estudiantes;
+            $_POST['docentes'] = $docentes;
+
+            // Validate basic input
+            $val = ValidationHelper::make($_POST);
+            $val->rule('titulo', 'required|min:5');
+            
             if ($val->fails()) {
                 $this->flash('error', $val->firstError());
                 $this->redirect('investigacion/registrar');
@@ -174,7 +158,7 @@ class InvestigacionController extends BaseController {
             // Get Director ID (Logged in user)
             $directorId = (int) $this->getUserId();
             if ($directorId === 0) {
-                 throw new \Exception("Usuario no identificado.");
+                 throw new \Exception("Usuario no identificado en la sesión.");
             }
 
             // Usar DTO
@@ -225,6 +209,7 @@ class InvestigacionController extends BaseController {
     }
 
     public function actualizar($id) {
+        if (session_status() === PHP_SESSION_NONE) session_start();
         $this->requireLogin();
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -235,18 +220,47 @@ class InvestigacionController extends BaseController {
             $this->logSecurity("Fallo de validación CSRF en actualización de tesis (ID: $id)");
             $this->flash('error', 'Sesión de formulario expirada. Intente nuevamente.');
             $this->redirect("investigacion/editar/$id");
+            return;
         }
 
         try {
-            $val = ValidationHelper::make($_POST);
-            $val->rule('titulo', 'required|min:5');
-            
-            if (empty($_POST['estudiantes']) || !is_array($_POST['estudiantes'])) {
+            // Filtrar nombres vacíos manualmente
+            $rawEstudiantes = $_POST['estudiantes'] ?? [];
+            $estudiantes = [];
+            if (is_array($rawEstudiantes)) {
+                foreach ($rawEstudiantes as $est) {
+                    $name = trim((string)$est);
+                    if ($name !== '') $estudiantes[] = $name;
+                }
+            }
+
+            $rawDocentes = $_POST['docentes'] ?? [];
+            $docentes = [];
+            if (is_array($rawDocentes)) {
+                foreach ($rawDocentes as $doc) {
+                    $name = trim((string)$doc);
+                    if ($name !== '') $docentes[] = $name;
+                }
+            }
+
+            if (empty($estudiantes)) {
                 $this->flash('error', 'Debe agregar al menos un estudiante.');
                 $this->redirect("investigacion/editar/$id");
                 return;
             }
+            if (empty($docentes)) {
+                $this->flash('error', 'Debe agregar al menos un docente (tutor/asesor).');
+                $this->redirect("investigacion/editar/$id");
+                return;
+            }
 
+            // Actualizar POST para el DTO
+            $_POST['estudiantes'] = $estudiantes;
+            $_POST['docentes'] = $docentes;
+
+            $val = ValidationHelper::make($_POST);
+            $val->rule('titulo', 'required|min:5');
+            
             if ($val->fails()) {
                 $this->flash('error', $val->firstError());
                 $this->redirect("investigacion/editar/$id");

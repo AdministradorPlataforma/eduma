@@ -23,11 +23,12 @@
                 <?php endif; ?>
             </div>
 
-            <div class="row">
-                <!-- Left Column: Main Info -->
-                <div class="col-lg-8 mb-4">
-                     <form action="<?= BASE_URL ?>investigacion/guardar" method="POST" enctype="multipart/form-data" class="needs-validation" novalidate autocomplete="off">
-                        <?= \App\Helpers\CSRFHelper::csrfField(); ?>
+            <form action="<?= BASE_URL ?>investigacion/guardar" method="POST" enctype="multipart/form-data" class="needs-validation" novalidate autocomplete="off">
+                <?= \App\Helpers\CSRFHelper::csrfField(); ?>
+                
+                <div class="row">
+                    <!-- Left Column: Main Info -->
+                    <div class="col-lg-8 mb-4">
                         
                         <!-- Panel 1: Detalles de la Tesis -->
                         <div class="glass-panel p-4 mb-4 animate-up delay-1">
@@ -148,18 +149,12 @@
                         </div>
                     </div>
 
-                    </form>
-                </div>
-            </div>
+                </div> <!-- End Row -->
+            </form>
         </div>
     </div>
 
-<link href="<?= BASE_URL ?>css/libraries/select2.min.css" rel="stylesheet" />
-
 <?php include_once __DIR__ . '/../Layouts/Footer.php'; ?>
-
-<!-- Required for Select2 -->
-<script src="<?= BASE_URL ?>js/libraries/select2.min.js"></script>
 
 <script>
     window.isEditMode = false;

@@ -27,10 +27,10 @@ class InvestigacionService extends BaseService {
         try {
             $this->db->beginTransaction();
 
-            $estudiantesIds = $dto->estudiantesIds;
-            $docentesIds = $dto->docentesIds;
+            $estudiantes = $dto->estudiantes;
+            $docentes = $dto->docentes;
 
-            if (empty($dto->titulo) || empty($estudiantesIds) || empty($docentesIds)) {
+            if (empty($dto->titulo) || empty($estudiantes) || empty($docentes)) {
                 throw new Exception("Datos incompletos: Título, estudiantes y docentes son requeridos.");
             }
 
@@ -59,7 +59,7 @@ class InvestigacionService extends BaseService {
             ];
 
             // 4. Persistir vía Repository
-            $tesisId = $this->repository->create($tesisData, $estudiantesIds, $docentesIds);
+            $tesisId = $this->repository->create($tesisData, $estudiantes, $docentes);
 
             $this->db->commit();
 
@@ -115,10 +115,10 @@ class InvestigacionService extends BaseService {
                 $updateData['archivo_tesis_path'] = $this->subirArchivo($dto->archivoTesis, 'documento_');
             }
 
-            $estudiantesIds = !empty($dto->estudiantesIds) ? $dto->estudiantesIds : null;
-            $docentesIds = !empty($dto->docentesIds) ? $dto->docentesIds : null;
+            $estudiantes = !empty($dto->estudiantes) ? $dto->estudiantes : null;
+            $docentes = !empty($dto->docentes) ? $dto->docentes : null;
 
-            $success = $this->repository->update($id, $updateData, $estudiantesIds, $docentesIds);
+            $success = $this->repository->update($id, $updateData, $estudiantes, $docentes);
 
             $this->db->commit();
             return $success;

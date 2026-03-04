@@ -7,8 +7,8 @@ class TesisDTO {
     public string $titulo;
     public string $descripcion;
     public string $estado;
-    public array $estudiantesIds;
-    public array $docentesIds;
+    public array $estudiantes;
+    public array $docentes;
     public ?array $archivo = null;
     public ?array $archivoTesis = null;
 
@@ -16,16 +16,16 @@ class TesisDTO {
         string $titulo,
         string $descripcion,
         string $estado,
-        array $estudiantesIds,
-        array $docentesIds,
+        array $estudiantes,
+        array $docentes,
         ?array $archivo = null,
         ?array $archivoTesis = null
     ) {
         $this->titulo = $titulo;
         $this->descripcion = $descripcion;
         $this->estado = $estado;
-        $this->estudiantesIds = $estudiantesIds;
-        $this->docentesIds = $docentesIds;
+        $this->estudiantes = $estudiantes;
+        $this->docentes = $docentes;
         $this->archivo = $archivo;
         $this->archivoTesis = $archivoTesis;
     }
