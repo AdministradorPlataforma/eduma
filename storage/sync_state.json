@@ -1,0 +1,83 @@
+{
+    "status": "completed",
+    "progress": 100,
+    "message": "Sincronizaci\u00f3n completada",
+    "stop_requested": false,
+    "type": "all",
+    "start_time": "2026-06-26 17:45:50",
+    "batch_id": "5fd7245c-7e85-4ced-8771-e967bb3a27fa",
+    "total_processed": 309576,
+    "total_updated": 234,
+    "total_errors": 0,
+    "end_time": 1782503524,
+    "checkpoint": {
+        "phase": "cohorts",
+        "context": {
+            "completed_phases": [
+                "categories",
+                "courses",
+                "users",
+                "enrollments",
+                "profiles",
+                "cohorts"
+            ],
+            "stats": {
+                "processed": 309576,
+                "inserted": 0,
+                "updated": 234,
+                "skipped": 0,
+                "errors": 0,
+                "start_time": 1782495950.072482,
+                "phases": {
+                    "categories": {
+                        "processed": 2913,
+                        "inserted": 6,
+                        "updated": 0,
+                        "skipped": 2907,
+                        "errors": 0,
+                        "start_time": 1782495950.074559,
+                        "total_from_moodle": 2913,
+                        "time_seconds": 6.27
+                    },
+                    "courses": {
+                        "processed": 9972,
+                        "inserted": 0,
+                        "updated": 0,
+                        "skipped": 0,
+                        "errors": 0,
+                        "start_time": 1782495956.347415,
+                        "total_from_moodle": 9972,
+                        "time_seconds": 44.02
+                    },
+                    "users": {
+                        "processed": 0,
+                        "inserted": 5,
+                        "updated": 234,
+                        "skipped": 0,
+                        "errors": 0,
+                        "start_time": 1782496000.378359,
+                        "total_from_moodle": 23585,
+                        "time_seconds": 351.93
+                    },
+                    "enrollments": {
+                        "processed": 295663,
+                        "errors": 0,
+                        "aborted": false,
+                        "time_seconds": 7126.79
+                    },
+                    "profiles": {
+                        "estudiantes_created": 47,
+                        "docentes_created": 0,
+                        "errors": 0
+                    },
+                    "cohorts": {
+                        "processed": 1028,
+                        "errors": 0,
+                        "time_seconds": 3.77
+                    }
+                }
+            }
+        },
+        "timestamp": 1782503482
+    }
+}

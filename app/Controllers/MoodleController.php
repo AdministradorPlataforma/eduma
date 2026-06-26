@@ -192,6 +192,8 @@ class MoodleController extends BaseController {
                 'grades' => 'grades',
                 'categories' => 'categories',
                 'enrollments' => 'enrollments',
+                'unlocked_users' => 'unlocked_users',
+                'enrollments_2026' => 'enrollments_2026',
                 'all' => 'all',
                 'delta' => 'delta'
             ];
@@ -262,9 +264,9 @@ class MoodleController extends BaseController {
             'regenerate_passwords' => $regeneratePasswords
         ];
         
-        // En entorno Windows/WAMP sin worker, ejecutar síncronamente
-        // Para producción con worker, cambiar a false
-        $executeSync = true; // Cambiar a false si hay worker de cola corriendo
+        // En producción siempre ejecutar en modo asíncrono usando worker.
+        // En desarrollo/local se permite modo síncrono para entornos sin worker.
+        $executeSync = \Config\Env::get('APP_ENV') !== 'production';
 
         try {
             // Instanciar job optimizado directamente
@@ -319,6 +321,10 @@ class MoodleController extends BaseController {
                 try {
                     $job->handle();
                     $jobModel->markAsCompleted($jobId);
+                } catch (\App\Exceptions\Moodle\StopSyncException $e) {
+                    // Detención intencional — no es un error
+                    $jobModel->markAsCompleted($jobId);
+                    LoggerService::info('Sync job stopped by user', ['job_id' => $jobId]);
                 } catch (\Throwable $e) {
                     $jobModel->markAsFailed($jobId, $e->getMessage());
                     LoggerService::error('Sync job failed', ['error' => $e->getMessage()]);
@@ -339,6 +345,312 @@ class MoodleController extends BaseController {
             $this->syncService->errorSync($e->getMessage());
             $this->jsonResponse(['success' => false, 'message' => 'No se pudo iniciar el proceso: ' . $e->getMessage()]);
         }
+    }
+
+    /**
+     * Inicia el worker de la cola en segundo plano
+     */
+    public function startWorker() {
+        $this->requirePermission('sincronizar_moodle');
+
+        try {
+            if (!CSRFHelper::validateToken($_POST['csrf_token'] ?? '')) {
+                $this->jsonResponse(['success' => false, 'message' => 'Token CSRF inválido'], 403);
+                return;
+            }
+
+            $projectRoot = dirname(__DIR__, 2);
+            $workerScript = $projectRoot . DIRECTORY_SEPARATOR . 'scripts' . DIRECTORY_SEPARATOR . 'sync_worker.php';
+
+            if (!file_exists($workerScript)) {
+                $this->jsonResponse(['success' => false, 'message' => 'Script de worker no encontrado.']);
+                return;
+            }
+
+            $phpBinary = PHP_BINARY ?: 'php';
+            $escapedPhp = escapeshellarg($phpBinary);
+            $escapedScript = escapeshellarg($workerScript);
+            $command = "{$escapedPhp} {$escapedScript} --daemon --sleep=5";
+
+            if (PHP_OS_FAMILY === 'Windows') {
+                $command = 'cmd /c start "" /B ' . $command;
+            } else {
+                $command = 'nohup ' . $command . ' > /dev/null 2>&1 &';
+            }
+
+            if ($this->isWorkerRunning()) {
+                $this->jsonSuccess([
+                    'message' => 'El worker ya está en ejecución.',
+                    'already_running' => true,
+                    'running' => true
+                ]);
+                return;
+            }
+
+            ob_start();
+            $started = $this->runBackgroundCommand($command);
+            ob_end_clean();
+
+            if (!$started) {
+                $this->jsonResponse(['success' => false, 'message' => 'No se pudo iniciar el worker en el servidor.']);
+                return;
+            }
+
+            if (!$this->waitForWorkerStart(3)) {
+                $this->jsonResponse(['success' => false, 'message' => 'No se detectó el worker después de iniciar el proceso.']);
+                return;
+            }
+
+            LoggerService::audit(
+                $this->getUserId(),
+                'MOODLE_WORKER_START',
+                'manual',
+                ['command' => $command]
+            );
+
+            $this->jsonSuccess(['message' => 'Worker de cola iniciado correctamente.', 'running' => true]);
+        } catch (\Throwable $e) {
+            \App\Helpers\LoggerHelper::error($e, ['action' => 'startWorker']);
+            $this->jsonResponse(['success' => false, 'message' => 'Error interno al iniciar el worker: ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function workerStatus() {
+        $this->requirePermission('sincronizar_moodle');
+
+        $running = $this->isWorkerRunning();
+        $pid = $this->getWorkerPid();
+
+        $message = $running ? 'Worker activo' : 'Worker detenido';
+
+        $this->jsonSuccess([
+            'running' => $running,
+            'pid' => $pid,
+            'message' => $message
+        ]);
+    }
+
+    public function stopWorker() {
+        $this->requirePermission('sincronizar_moodle');
+
+        try {
+            if (!CSRFHelper::validateToken($_POST['csrf_token'] ?? '')) {
+                $this->jsonResponse(['success' => false, 'message' => 'Token CSRF inválido'], 403);
+                return;
+            }
+
+            if (!$this->isWorkerRunning()) {
+                $this->removeWorkerPidFile();
+                $this->jsonSuccess(['message' => 'No hay worker en ejecución.', 'running' => false]);
+                return;
+            }
+
+            $pids = $this->getWorkerPids();
+            if (empty($pids)) {
+                $this->removeWorkerPidFile();
+                $this->jsonResponse(['success' => false, 'message' => 'No se pudo encontrar el PID del worker.'], 500);
+                return;
+            }
+
+            $failed = [];
+            foreach ($pids as $pid) {
+                if (!$this->killWorkerProcess($pid)) {
+                    $failed[] = $pid;
+                }
+            }
+
+            $this->removeWorkerPidFile();
+
+            if (!empty($failed)) {
+                $this->jsonResponse([
+                    'success' => false,
+                    'message' => 'No se pudieron detener los procesos del worker: ' . implode(', ', $failed)
+                ], 500);
+                return;
+            }
+
+            LoggerService::audit(
+                $this->getUserId(),
+                'MOODLE_WORKER_STOP',
+                'manual',
+                ['pid' => implode(', ', $pids)]
+            );
+
+            $this->jsonSuccess(['message' => 'Worker detenido correctamente.', 'running' => false]);
+        } catch (\Throwable $e) {
+            \App\Helpers\LoggerHelper::error($e, ['action' => 'stopWorker']);
+            $this->jsonResponse(['success' => false, 'message' => 'Error interno al detener el worker: ' . $e->getMessage()], 500);
+        }
+    }
+
+    private function killWorkerProcess(?int $pid): bool {
+        if ($pid === null) {
+            return false;
+        }
+
+        if (PHP_OS_FAMILY === 'Windows') {
+            @exec("taskkill /PID {$pid} /F", $output, $status);
+            return $status === 0;
+        }
+
+        if (function_exists('posix_kill')) {
+            $termSignal = defined('SIGTERM') ? SIGTERM : 15;
+            return posix_kill($pid, $termSignal);
+        }
+
+        @exec("kill -15 {$pid}", $output, $status);
+        return $status === 0;
+    }
+
+    private function removeWorkerPidFile(): void {
+        $pidFile = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'sync_worker.pid';
+        if (file_exists($pidFile)) {
+            @unlink($pidFile);
+        }
+    }
+
+    private function waitForWorkerStart(int $seconds = 3): bool {
+        $deadline = time() + $seconds;
+        while (time() <= $deadline) {
+            if ($this->isWorkerRunning()) {
+                return true;
+            }
+            usleep(150000);
+        }
+        return false;
+    }
+
+    private function isWorkerRunning(): bool {
+        return !empty($this->getWorkerPids());
+    }
+
+    private function getWorkerPids(): array {
+        $pids = [];
+
+        $pid = $this->getWorkerPid();
+        if ($pid !== null && $this->isProcessActive($pid)) {
+            $pids[] = $pid;
+        }
+
+        if (empty($pids)) {
+            $pids = $this->findWorkerPids();
+        }
+
+        return array_values(array_unique($pids));
+    }
+
+    private function getWorkerPid(): ?int {
+        $pidFile = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'sync_worker.pid';
+        if (!file_exists($pidFile)) {
+            return null;
+        }
+
+        $contents = trim(@file_get_contents($pidFile));
+        if ($contents === '' || !ctype_digit($contents)) {
+            return null;
+        }
+
+        return (int)$contents;
+    }
+
+    private function isProcessActive(int $pid): bool {
+        if (PHP_OS_FAMILY === 'Windows') {
+            @exec("tasklist /FI \"PID eq {$pid}\" /FO CSV /NH", $output, $status);
+            if ($status !== 0 || empty($output)) {
+                return false;
+            }
+            foreach ($output as $line) {
+                if (stripos($line, 'php.exe') !== false) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        if (function_exists('posix_kill')) {
+            return posix_kill($pid, 0);
+        }
+
+        return false;
+    }
+
+    private function findWorkerPids(): array {
+        $pids = [];
+
+        if (PHP_OS_FAMILY === 'Windows') {
+            @exec('wmic process where "name=\'php.exe\'" get CommandLine,ProcessId /FORMAT:csv', $output, $status);
+            if ($status !== 0 || empty($output)) {
+                return [];
+            }
+
+            foreach ($output as $line) {
+                if (stripos($line, 'sync_worker.php') !== false) {
+                    $parts = array_map('trim', explode(',', $line));
+                    $pid = end($parts);
+                    if (ctype_digit($pid)) {
+                        $pids[] = (int)$pid;
+                    }
+                }
+            }
+
+            return array_unique($pids);
+        }
+
+        @exec('pgrep -af ' . escapeshellarg('php'), $output, $status);
+        if ($status !== 0 || empty($output)) {
+            return [];
+        }
+
+        foreach ($output as $line) {
+            if (stripos($line, 'sync_worker.php') !== false) {
+                $pid = (int)trim(strtok($line, ' '));
+                if ($pid > 0) {
+                    $pids[] = $pid;
+                }
+            }
+        }
+
+        return array_unique($pids);
+    }
+
+    private function runBackgroundCommand(string $command): bool {
+        if (function_exists('proc_open')) {
+            $descriptors = [
+                0 => ['pipe', 'r'],
+                1 => ['pipe', 'w'],
+                2 => ['pipe', 'w'],
+            ];
+            $process = proc_open($command, $descriptors, $pipes, dirname(__DIR__, 2));
+            if (is_resource($process)) {
+                foreach ($pipes as $pipe) {
+                    if (is_resource($pipe)) {
+                        fclose($pipe);
+                    }
+                }
+                $status = proc_close($process);
+                return $status === 0 || $status === null;
+            }
+        }
+
+        if (function_exists('popen')) {
+            $handle = popen($command, 'r');
+            if ($handle !== false) {
+                pclose($handle);
+                return true;
+            }
+        }
+
+        if (function_exists('shell_exec')) {
+            shell_exec($command);
+            return true;
+        }
+
+        if (function_exists('exec')) {
+            exec($command);
+            return true;
+        }
+
+        return false;
     }
 
     /**
@@ -423,29 +735,40 @@ class MoodleController extends BaseController {
             if (is_object($handlerObj)) {
                 $clazz = (new \ReflectionClass($handlerObj))->getShortName();
                 $info = $clazz;
-                
+
                 if (property_exists($handlerObj, 'entity')) {
-                     // Reflection al rescate
-                     $ref = new \ReflectionObject($handlerObj);
-                     if ($ref->hasProperty('entity')) {
-                         $prop = $ref->getProperty('entity');
-                         $prop->setAccessible(true);
-                         $info = ucfirst($prop->getValue($handlerObj));
-                     }
-                      if ($ref->hasProperty('batchSize')) {
-                         $prop2 = $ref->getProperty('page');
-                         if ($prop2) {
+                    // Reflection al rescate
+                    $ref = new \ReflectionObject($handlerObj);
+                    if ($ref->hasProperty('entity')) {
+                        $prop = $ref->getProperty('entity');
+                        $prop->setAccessible(true);
+                        $info = ucfirst((string)$prop->getValue($handlerObj));
+                    }
+                    if ($ref->hasProperty('batchSize')) {
+                        $prop2 = $ref->getProperty('page');
+                        if ($prop2) {
                             $prop2->setAccessible(true);
                             $page = $prop2->getValue($handlerObj);
                             $batch = "Lote " . $page;
-                         }
-                     }
+                        }
+                    }
+                }
+
+                if ($ref->hasProperty('syncType')) {
+                    $propSyncType = $ref->getProperty('syncType');
+                    $propSyncType->setAccessible(true);
+                    $syncType = $propSyncType->getValue($handlerObj);
+                } elseif ($ref->hasProperty('type')) {
+                    $propSyncType = $ref->getProperty('type');
+                    $propSyncType->setAccessible(true);
+                    $syncType = $propSyncType->getValue($handlerObj);
                 }
             }
 
             return [
                 'id' => $job['id'],
                 'entity' => $info,
+                'sync_type' => $syncType ?? null,
                 'batch' => $batch,
                 'status' => $job['status'],
                 'progress' => ($job['status'] === 'completed') ? 100 : (($job['status'] === 'running') ? 50 : 0),
@@ -721,37 +1044,35 @@ class MoodleController extends BaseController {
         // IMPORTANTE: Cerrar sesión para escritura para no bloquear otros requests
         session_write_close();
 
-        $lastPulse = 0;
-        $file = dirname(__DIR__, 2) . '/storage/sync_state.json';
+        $lastHash = '';
 
-        // Bucle de streaming
+        // Bucle de streaming - Usa BD como fuente de verdad
         while (true) {
             // Verificar si el cliente sigue conectado
             if (connection_aborted()) break;
 
-            clearstatcache(true, $file);
-            $currentPulse = file_exists($file) ? filemtime($file) : 0;
+            $status = $this->syncService->getStatus();
+            $currentHash = md5(json_encode($status));
 
-            if ($currentPulse > $lastPulse) {
-                $status = $this->syncService->getStatus();
+            if ($currentHash !== $lastHash) {
                 echo "data: " . json_encode($status) . "\n\n";
                 
                 // Flush inmediato al buffer de salida
                 if (ob_get_level() > 0) ob_flush();
                 flush();
                 
-                $lastPulse = $currentPulse;
+                $lastHash = $currentHash;
 
                 // Si terminó el proceso, podemos cerrar el stream después de un último envío
-                if (!in_array($status['status'], ['running', 'stopping'])) {
+                if (!in_array($status['status'] ?? 'idle', ['running', 'stopping'])) {
                     // Esperar un poco para asegurar que el cliente recibe el 'completed'
                     sleep(2);
                     break;
                 }
             }
 
-            // Pausa de cortesía para no saturar CPU (bit-a-bit real, alta frecuencia)
-            usleep(200000); // 200ms
+            // Pausa de cortesía para no saturar CPU (200ms)
+            usleep(200000);
         }
     }
 }

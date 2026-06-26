@@ -6,6 +6,7 @@ namespace App\Jobs;
 use App\Services\MoodleSyncOptimizedService;
 use App\Services\SyncStateDbService;
 use App\Services\LoggerService;
+use App\Exceptions\Moodle\StopSyncException;
 use Exception;
 
 /**
@@ -67,6 +68,14 @@ class SyncMoodleOptimizedJob implements JobInterface {
                     $result = $service->sincronizarDelta();
                     break;
 
+                case 'unlocked_users':
+                    $result = $service->sincronizarUsuariosDesbloqueados();
+                    break;
+
+                case 'enrollments_2026':
+                    $result = $service->sincronizarMatriculas2026();
+                    break;
+
                 case 'categories':
                     $state->startSync('categories');
                     $result = $service->sincronizarCategorias();
@@ -114,6 +123,20 @@ class SyncMoodleOptimizedJob implements JobInterface {
                 'elapsed_seconds' => $elapsed,
                 'result' => $result
             ]);
+
+        } catch (StopSyncException $e) {
+            // Detención solicitada por el usuario — NO es un error
+            $elapsed = round(microtime(true) - $startTime, 2);
+            
+            $state->markAsStopped();
+            
+            LoggerService::info("SyncMoodleOptimizedJob: Detenido por el usuario", [
+                'type' => $this->syncType,
+                'elapsed_seconds' => $elapsed
+            ]);
+            
+            // NO re-lanzar: no es un fallo, es detención intencional
+            return;
 
         } catch (Exception $e) {
             $elapsed = round(microtime(true) - $startTime, 2);

@@ -10,7 +10,14 @@ let isSyncing = false;
 let eventSource = null;
 let healthCheckInterval = null;
 let syncStartTime = null;
-let processedCount = 0;
+
+// Metrics tracking v3.5
+let lastProcessedCount = 0;
+let lastPulseTime = 0;
+let instantRate = 0;
+let rateHistory = []; // Para suavizado (moving average)
+let processedCount = 0; // Contador global de registros procesados
+let lastSyncMessage = ''; // Para rastrear cambios en el mensaje y agregarlos al log
 
 // =====================================
 // INITIALIZATION
@@ -33,6 +40,9 @@ document.addEventListener('DOMContentLoaded', function () {
     // Periodic health check every 30 seconds
     healthCheckInterval = setInterval(checkHealth, 30000);
 
+    // Job history refresh every 20 seconds
+    setInterval(loadJobHistory, 20000);
+
     // =====================================
     // EVENT LISTENERS (NEW)
     // =====================================
@@ -47,13 +57,35 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Master Sync controls
     const btnSyncStart = document.getElementById('btn-sync-start');
-    if (btnSyncStart) btnSyncStart.addEventListener('click', startGlobalSync);
+    if (btnSyncStart) {
+        btnSyncStart.dataset.originalHtml = btnSyncStart.innerHTML;
+        btnSyncStart.addEventListener('click', startGlobalSync);
+    }
 
     const btnSyncStop = document.getElementById('btn-sync-stop');
-    if (btnSyncStop) btnSyncStop.addEventListener('click', stopGlobalSync);
+    if (btnSyncStop) {
+        btnSyncStop.dataset.originalHtml = btnSyncStop.innerHTML;
+        btnSyncStop.addEventListener('click', stopGlobalSync);
+        btnSyncStop.style.display = 'none';
+    }
 
     const btnResetTotal = document.getElementById('btn-reset-processes');
     if (btnResetTotal) btnResetTotal.addEventListener('click', resetAllProcesses);
+
+    const btnStartWorker = document.getElementById('btn-start-worker');
+    const btnStopWorker = document.getElementById('btn-stop-worker');
+    if (btnStartWorker) {
+        btnStartWorker.dataset.originalHtml = btnStartWorker.innerHTML;
+        btnStartWorker.addEventListener('click', startWorkerProcess);
+    }
+    if (btnStopWorker) {
+        btnStopWorker.dataset.originalHtml = btnStopWorker.innerHTML;
+        btnStopWorker.addEventListener('click', stopWorkerProcess);
+        btnStopWorker.style.display = 'none';
+    }
+
+    refreshWorkerStatus();
+    setInterval(refreshWorkerStatus, 10000);
 
     // Log controls
     const btnExportLog = document.getElementById('btn-export-log');
@@ -61,6 +93,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const btnClearLog = document.getElementById('btn-clear-log');
     if (btnClearLog) btnClearLog.addEventListener('click', clearLog);
+
+    const btnRefreshJobs = document.getElementById('btn-refresh-jobs');
+    if (btnRefreshJobs) btnRefreshJobs.addEventListener('click', loadJobHistory);
 
     // Single entity sync buttons
     document.querySelectorAll('.btn-sync-entity').forEach(btn => {
@@ -90,10 +125,15 @@ function logMessage(msg, type = 'info') {
 
     const entry = document.createElement('div');
     entry.className = `log-entry ${type}`;
-    entry.innerHTML = `
-        <span class="log-time">${getTimestamp()}</span>
-        <span class="log-msg">${msg}</span>
-    `;
+
+    const timeSpan = document.createElement('span');
+    timeSpan.className = 'log-time';
+    timeSpan.textContent = getTimestamp();
+    const msgSpan = document.createElement('span');
+    msgSpan.className = 'log-msg';
+    msgSpan.textContent = msg;
+    entry.appendChild(timeSpan);
+    entry.appendChild(msgSpan);
 
     logContainer.appendChild(entry);
     logContainer.scrollTop = logContainer.scrollHeight;
@@ -153,6 +193,37 @@ function formatDuration(seconds) {
     return `${hr}h ${min}m`;
 }
 
+function isApiSuccess(data) {
+    return data && (data.success === true || data.status === 'success');
+}
+
+function getApiMessage(data, fallback = '') {
+    if (!data) return fallback;
+    return data.message || (data.data && data.data.message) || fallback;
+}
+
+function getBaseUrl() {
+    return window.BASE_URL || document.body.dataset.baseUrl || '/';
+}
+
+function fetchJson(url, options = {}) {
+    const baseHeaders = {
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json'
+    };
+
+    const mergedOptions = {
+        credentials: 'same-origin',
+        ...options,
+        headers: {
+            ...baseHeaders,
+            ...(options.headers || {})
+        }
+    };
+
+    return fetch(url, mergedOptions);
+}
+
 // =====================================
 // HEALTH CHECK
 // =====================================
@@ -164,11 +235,8 @@ function checkHealth() {
     if (indicator) indicator.className = 'health-indicator loading';
     if (dot) dot.className = 'health-dot loading';
 
-    fetch(window.BASE_URL + 'moodle/health', {
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-            'Accept': 'application/json'
-        }
+    fetchJson(getBaseUrl() + 'moodle/health', {
+        method: 'GET'
     })
         .then(res => {
             const contentType = res.headers.get('content-type');
@@ -188,7 +256,7 @@ function checkHealth() {
                 throw new Error(data.error || data.message || `HTTP ${status}`);
             }
 
-            if (data.success && data.data) {
+            if (isApiSuccess(data) && data.data) {
                 const d = data.data;
 
                 // Update UI
@@ -206,7 +274,7 @@ function checkHealth() {
                     updateCircuitBreakerUI(d.circuit_breaker);
                 }
 
-            } else if (!data.success) {
+            } else if (!isApiSuccess(data)) {
                 throw new Error(data.error || 'Error de conexión con Moodle');
             }
         })
@@ -281,22 +349,21 @@ function resetCircuit() {
         cancelButtonText: 'Cancelar'
     }).then((result) => {
         if (result.isConfirmed) {
-            fetch(window.BASE_URL + 'moodle/reset-circuit', {
+            fetchJson(getBaseUrl() + 'moodle/reset-circuit', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'X-Requested-With': 'XMLHttpRequest'
+                    'Content-Type': 'application/x-www-form-urlencoded'
                 },
                 body: `csrf_token=${encodeURIComponent(csrfToken)}`
             })
                 .then(res => res.json())
                 .then(data => {
-                    if (data.success) {
+                    if (isApiSuccess(data)) {
                         Swal.fire('Reseteado', 'Circuit breaker reseteado correctamente', 'success');
                         logMessage('Circuit breaker reseteado manualmente', 'warning');
                         checkHealth();
                     } else {
-                        throw new Error(data.message || 'Error al resetear');
+                        throw new Error(getApiMessage(data, 'Error al resetear'));
                     }
                 })
                 .catch(err => {
@@ -319,11 +386,10 @@ function resetAllProcesses() {
         cancelButtonText: 'Cancelar'
     }).then((result) => {
         if (result.isConfirmed) {
-            fetch(window.BASE_URL + 'moodle/reset-processes', {
+            fetchJson(getBaseUrl() + 'moodle/reset-processes', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'X-Requested-With': 'XMLHttpRequest'
+                    'Content-Type': 'application/x-www-form-urlencoded'
                 },
                 body: `csrf_token=${encodeURIComponent(csrfToken)}`
             })
@@ -362,24 +428,30 @@ function resetAllProcesses() {
 // =====================================
 // SYNC CONTROL - V3.0 OPTIMIZADO
 // =====================================
-function startGlobalSync() {
-    const csrfToken = getCsrfToken();
-    const syncType = document.getElementById('sync-type')?.value || 'all';
-    const forceSync = document.getElementById('sync-force')?.checked || false;
-    const regenPasswords = document.getElementById('sync-regenerate-passwords')?.checked || false;
-
+function getSyncTypeLabel(type) {
     const typeLabels = {
         'all': 'completa',
         'delta': 'incremental (últimas 24h)',
         'categories': 'de categorías',
         'courses': 'de cursos',
         'users': 'de usuarios',
+        'unlocked_users': 'de usuarios desbloqueados',
         'enrollments': 'de matrículas',
+        'enrollments_2026': 'de matrículas 2026',
         'cohorts': 'de cohortes',
         'grades': 'de calificaciones'
     };
 
-    const label = typeLabels[syncType] || syncType;
+    return typeLabels[type] || type;
+}
+
+function startGlobalSync() {
+    const csrfToken = getCsrfToken();
+    const syncType = document.getElementById('sync-type')?.value || 'all';
+    const forceSync = document.getElementById('sync-force')?.checked || false;
+    const regenPasswords = document.getElementById('sync-regenerate-passwords')?.checked || false;
+
+    const label = getSyncTypeLabel(syncType);
 
     Swal.fire({
         title: 'Iniciar Sincronización',
@@ -401,11 +473,10 @@ function startGlobalSync() {
             updateUIState(true);
             logMessage(`Iniciando sincronización ${label}...`, 'info');
 
-            fetch(window.BASE_URL + 'moodle/sync/asyncStart', {
+            fetchJson(getBaseUrl() + 'moodle/sync/asyncStart', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'X-Requested-With': 'XMLHttpRequest'
+                    'Content-Type': 'application/x-www-form-urlencoded'
                 },
                 body: `csrf_token=${encodeURIComponent(csrfToken)}&type=${syncType}&force=${forceSync ? 1 : 0}&regenerate_passwords=${regenPasswords ? 1 : 0}&optimized=1`
             })
@@ -429,12 +500,14 @@ function startGlobalSync() {
                         Swal.fire('Error', errorMsg, 'error');
                         logMessage(`Error al iniciar: ${errorMsg}`, 'error');
                         updateUIState(false);
+                        setSyncActionState('idle');
                     }
                 })
                 .catch(err => {
                     Swal.fire('Error de Red', err.message, 'error');
                     logMessage(`Error de red: ${err.message}`, 'error');
                     updateUIState(false);
+                    setSyncActionState('idle');
                 });
         }
     });
@@ -454,12 +527,12 @@ function stopGlobalSync() {
     }).then((result) => {
         if (result.isConfirmed) {
             logMessage('Solicitando detención del proceso...', 'warning');
+            setSyncActionState('stopping');
 
-            fetch(window.BASE_URL + 'moodle/sync/asyncStop', {
+            fetchJson(getBaseUrl() + 'moodle/sync/asyncStop', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'X-Requested-With': 'XMLHttpRequest'
+                    'Content-Type': 'application/x-www-form-urlencoded'
                 },
                 body: `csrf_token=${encodeURIComponent(csrfToken)}`
             })
@@ -473,9 +546,52 @@ function stopGlobalSync() {
                         showConfirmButton: false
                     });
                     logMessage('Señal de detención enviada', 'warning');
+                })
+                .catch(err => {
+                    Swal.fire('Error', 'No se pudo enviar la señal de detención: ' + err.message, 'error');
+                    logMessage(`Error al detener: ${err.message}`, 'error');
+                    setSyncActionState('running');
                 });
         }
     });
+}
+
+function setSyncActionState(state) {
+    const btnStart = document.getElementById('btn-sync-start');
+    const btnStop = document.getElementById('btn-sync-stop');
+    if (!btnStart || !btnStop) return;
+
+    const originalStartHtml = btnStart.dataset.originalHtml || '<i class="bi bi-rocket-takeoff me-1"></i>Iniciar';
+    const originalStopHtml = btnStop.dataset.originalHtml || '<i class="bi bi-stop-fill me-1"></i>Detener';
+
+    switch (state) {
+        case 'starting':
+            btnStart.disabled = true;
+            btnStart.innerHTML = '<span class="spinner-border spinner-border-sm text-white me-2" role="status" aria-hidden="true"></span>Iniciando...';
+            btnStop.disabled = true;
+            btnStop.style.display = 'none';
+            break;
+        case 'stopping':
+            btnStart.disabled = true;
+            btnStop.disabled = true;
+            btnStop.style.display = '';
+            btnStop.innerHTML = '<span class="spinner-border spinner-border-sm text-white me-2" role="status" aria-hidden="true"></span>Deteniendo...';
+            break;
+        case 'running':
+            btnStart.disabled = true;
+            btnStop.disabled = false;
+            btnStop.style.display = '';
+            btnStart.innerHTML = originalStartHtml;
+            btnStop.innerHTML = originalStopHtml;
+            break;
+        default:
+            btnStart.disabled = false;
+            btnStart.innerHTML = originalStartHtml;
+            btnStop.disabled = true;
+            btnStop.style.display = 'none';
+            btnStop.innerHTML = originalStopHtml;
+            break;
+    }
 }
 
 function syncEntity(entity) {
@@ -484,29 +600,30 @@ function syncEntity(entity) {
 
     logMessage(`Iniciando sincronización de ${entity}...`, 'info');
 
-    fetch(window.BASE_URL + `moodle/sync/${entity}`, {
+    fetchJson(getBaseUrl() + `moodle/sync/${entity}`, {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'X-Requested-With': 'XMLHttpRequest'
+            'Content-Type': 'application/x-www-form-urlencoded'
         },
         body: `csrf_token=${encodeURIComponent(csrfToken)}&force=${forceSync ? 1 : 0}`
     })
         .then(res => res.json())
         .then(data => {
-            if (data.success) {
+            if (isApiSuccess(data)) {
+                const message = getApiMessage(data, 'Sincronización iniciada');
                 Swal.fire({
                     title: 'Sincronización Iniciada',
-                    html: `<p>${data.message}</p><small class="text-muted">Job ID: ${data.job_id || 'N/A'}</small>`,
+                    html: `<p>${message}</p><small class="text-muted">Job ID: ${data.job_id || 'N/A'}</small>`,
                     icon: 'success',
                     timer: 2500,
                     showConfirmButton: false
                 });
-                logMessage(`${entity}: ${data.message}`, 'success');
+                logMessage(`${entity}: ${message}`, 'success');
                 startPolling();
             } else {
-                Swal.fire('Error', data.message, 'error');
-                logMessage(`${entity}: Error - ${data.message}`, 'error');
+                const errorMsg = getApiMessage(data, 'Error desconocido');
+                Swal.fire('Error', errorMsg, 'error');
+                logMessage(`${entity}: Error - ${errorMsg}`, 'error');
             }
         })
         .catch(err => {
@@ -515,18 +632,234 @@ function syncEntity(entity) {
         });
 }
 
+function startWorkerProcess() {
+    const csrfToken = getCsrfToken();
+    logMessage('Solicitando inicio de worker de cola...', 'info');
+
+    setWorkerButtonState('starting');
+
+    fetchJson(getBaseUrl() + 'moodle/sync/start-worker', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: `csrf_token=${encodeURIComponent(csrfToken)}`
+    })
+        .then(async res => {
+            const text = await res.text();
+            if (!res.ok) {
+                return { success: false, message: text || `HTTP ${res.status}` };
+            }
+            try {
+                return JSON.parse(text);
+            } catch (parseError) {
+                return { success: false, message: text || parseError.message };
+            }
+        })
+        .then(data => {
+            if (isApiSuccess(data)) {
+                const message = getApiMessage(data, 'Worker iniciado correctamente');
+                Swal.fire({
+                    title: 'Worker Iniciado',
+                    text: message,
+                    icon: 'success',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+                logMessage('Worker iniciado correctamente', 'success');
+                updateWorkerStatusUI(true, message);
+                if (data.already_running) {
+                    logMessage('El worker ya estaba en ejecución.', 'info');
+                }
+                checkGlobalStatus();
+            } else {
+                const errorMsg = getApiMessage(data, 'No se pudo iniciar el worker');
+                Swal.fire('Error', errorMsg, 'error');
+                logMessage(`Error al iniciar worker: ${errorMsg}`, 'error');
+                updateWorkerStatusUI(false, errorMsg);
+            }
+        })
+        .catch(err => {
+            Swal.fire('Error de Red', err.message, 'error');
+            logMessage(`Error al iniciar worker: ${err.message}`, 'error');
+            updateWorkerStatusUI(false, err.message);
+        })
+        .finally(() => {
+            if (document.getElementById('worker-status-badge')?.dataset.state !== 'running') {
+                setWorkerButtonState('idle');
+            }
+        });
+}
+
+function stopWorkerProcess() {
+    Swal.fire({
+        title: 'Detener Worker',
+        text: '¿Estás seguro de que deseas detener el worker? Esto finalizará el procesamiento de la cola.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, detener',
+        cancelButtonText: 'Cancelar',
+        reverseButtons: true
+    }).then(result => {
+        if (!result.isConfirmed) {
+            return;
+        }
+
+        const csrfToken = getCsrfToken();
+        logMessage('Solicitando detención del worker...', 'warning');
+
+        setWorkerButtonState('stopping');
+
+        fetchJson(getBaseUrl() + 'moodle/sync/stop-worker', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: `csrf_token=${encodeURIComponent(csrfToken)}`
+        })
+        .then(async res => {
+            const text = await res.text();
+            if (!res.ok) {
+                return { success: false, message: text || `HTTP ${res.status}` };
+            }
+            try {
+                return JSON.parse(text);
+            } catch (parseError) {
+                return { success: false, message: text || parseError.message };
+            }
+        })
+        .then(data => {
+            if (isApiSuccess(data)) {
+                const message = getApiMessage(data, 'Worker detenido correctamente');
+                Swal.fire({
+                    title: 'Worker Detenido',
+                    text: message,
+                    icon: 'success',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+                logMessage('Worker detenido correctamente', 'success');
+                updateWorkerStatusUI(false, message);
+            } else {
+                const errorMsg = getApiMessage(data, 'No se pudo detener el worker');
+                Swal.fire('Error', errorMsg, 'error');
+                logMessage(`Error al detener worker: ${errorMsg}`, 'error');
+                updateWorkerStatusUI(true, errorMsg);
+            }
+        })
+        .catch(err => {
+            Swal.fire('Error de Red', err.message, 'error');
+            logMessage(`Error al detener worker: ${err.message}`, 'error');
+            updateWorkerStatusUI(true, err.message);
+        })
+        .finally(() => {
+            refreshWorkerStatus();
+        });
+    });
+}
+
+function refreshWorkerStatus() {
+    const baseUrl = getBaseUrl();
+    const badge = document.getElementById('worker-status-badge');
+    if (!badge) return;
+
+    fetchJson(baseUrl + 'moodle/sync/worker-status', {
+        method: 'GET'
+    })
+        .then(async res => {
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const contentType = res.headers.get('content-type') || '';
+            if (contentType.includes('application/json')) {
+                return res.json();
+            }
+            const text = await res.text();
+            if (text.includes('Iniciar Sesión') || text.includes('login')) {
+                throw new Error('Sesión expirada - recargue la página');
+            }
+            throw new Error(`Respuesta no es JSON: ${text.slice(0, 100)}`);
+        })
+        .then(data => {
+            const isSuccess = isApiSuccess(data);
+            if (!isSuccess || !data.data) {
+                throw new Error(getApiMessage(data, 'No se pudo leer el estado del worker'));
+            }
+            updateWorkerStatusUI(data.data.running, data.data.message);
+        })
+        .catch(err => {
+            console.error('Error verificando estado del worker:', err);
+            updateWorkerStatusUI(false, 'Error al verificar estado');
+            logMessage(`Estado worker no disponible: ${err.message}`, 'warning');
+        });
+}
+
+function setWorkerButtonState(state) {
+    const btnStart = document.getElementById('btn-start-worker');
+    const btnStop = document.getElementById('btn-stop-worker');
+    if (!btnStart) return;
+    const originalHtml = btnStart.dataset.originalHtml || '<i class="bi bi-play-fill me-2"></i>Iniciar Worker';
+    const originalStopHtml = btnStop?.dataset.originalHtml || '<i class="bi bi-stop-fill me-2"></i>Detener Worker';
+
+    switch (state) {
+        case 'starting':
+            btnStart.disabled = true;
+            btnStart.innerHTML = '<span class="spinner-border spinner-border-sm text-white me-2" role="status" aria-hidden="true"></span>Iniciando...';
+            if (btnStop) {
+                btnStop.disabled = true;
+                btnStop.style.display = 'none';
+            }
+            break;
+        case 'running':
+            btnStart.disabled = true;
+            btnStart.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i>Worker activo';
+            if (btnStop) {
+                btnStop.disabled = false;
+                btnStop.style.display = '';
+                btnStop.innerHTML = originalStopHtml;
+            }
+            break;
+        case 'stopping':
+            btnStart.disabled = true;
+            btnStart.innerHTML = originalHtml;
+            if (btnStop) {
+                btnStop.disabled = true;
+                btnStop.style.display = '';
+                btnStop.innerHTML = '<span class="spinner-border spinner-border-sm text-white me-2" role="status" aria-hidden="true"></span>Deteniendo...';
+            }
+            break;
+        default:
+            btnStart.disabled = false;
+            btnStart.innerHTML = originalHtml;
+            if (btnStop) {
+                btnStop.disabled = true;
+                btnStop.style.display = 'none';
+                btnStop.innerHTML = originalStopHtml;
+            }
+            break;
+    }
+}
+
+function updateWorkerStatusUI(running, message = '') {
+    const badge = document.getElementById('worker-status-badge');
+    if (!badge) return;
+    const statusText = running ? 'activo' : 'detenido';
+    const extra = message ? ` — ${message}` : '';
+
+    badge.dataset.state = running ? 'running' : 'idle';
+    badge.className = running ? 'badge bg-success text-white' : 'badge bg-soft-secondary text-secondary';
+    badge.textContent = `Worker: ${statusText}${extra}`;
+
+    setWorkerButtonState(running ? 'running' : 'idle');
+}
+
 // =====================================
 // POLLING & STATUS
 // =====================================
 function checkGlobalStatus() {
     // Asegurar que BASE_URL exista
-    const baseUrl = window.BASE_URL || '/eduma2/';
+    const baseUrl = getBaseUrl();
 
-    fetch(baseUrl + 'moodle/sync/getAsyncStatus', {
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-            'Accept': 'application/json'
-        }
+    fetchJson(baseUrl + 'moodle/sync/getAsyncStatus', {
+        method: 'GET'
     })
         .then(res => {
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -573,7 +906,7 @@ function checkGlobalStatus() {
 function startPolling() {
     if (eventSource) return;
 
-    const url = window.BASE_URL + 'moodle/sync/streamProgress';
+    const url = getBaseUrl() + 'moodle/sync/streamProgress';
     logMessage('Conectando vía Real-Time Stream...', 'info');
 
     eventSource = new EventSource(url);
@@ -598,9 +931,12 @@ function startPolling() {
 
     eventSource.onerror = function (err) {
         console.error('SSE Error:', err);
-        // Silenciosamente reintenta o fallback si el server cierra el stream
         if (eventSource.readyState === EventSource.CLOSED) {
-            console.log('SSE connection closed, waiting to reconnect if needed...');
+            stopPolling();
+            logMessage('Conexión SSE perdida. Reintentando en 10s...', 'warning');
+            setTimeout(() => {
+                if (isSyncing) startPolling();
+            }, 10000);
         }
     };
 }
@@ -650,6 +986,12 @@ function updateProgress(status) {
     const pct = status.progress || 0;
     const msg = status.message || 'Esperando...';
 
+    // Agregar al log si el mensaje cambió
+    if (msg !== lastSyncMessage && msg !== 'Esperando...') {
+        logMessage(msg, 'info');
+        lastSyncMessage = msg;
+    }
+
     if (progressBar) {
         progressBar.style.setProperty('--progress', pct + '%');
         progressBar.style.width = pct + '%';
@@ -657,8 +999,13 @@ function updateProgress(status) {
     if (percentLabel) percentLabel.innerText = pct + '%';
     if (msgLabel) msgLabel.innerText = msg;
     if (phaseLabel) {
-        const type = status.type || 'all';
+        const type = getSyncTypeLabel(status.type || 'all');
         phaseLabel.innerText = `Tipo: ${type} | Estado: ${status.status || 'desconocido'}`;
+    }
+
+    const typeBadge = document.getElementById('sync-type-badge');
+    if (typeBadge) {
+        typeBadge.innerText = `Tipo: ${getSyncTypeLabel(status.type || 'all')}`;
     }
 
     // Update stats
@@ -673,6 +1020,9 @@ function updateProgress(status) {
     if (status.total_errors !== undefined) {
         document.getElementById('stat-errors').textContent = status.total_errors || 0;
     }
+
+    // Actualizar job history badge if available
+    loadJobHistory();
 
     // Actualizar tiempo de última sincronización si existe
     if (status.end_time) {
@@ -700,33 +1050,117 @@ function updateProgress(status) {
 function updatePerformanceMetrics(status) {
     const elapsedEl = document.getElementById('perf-elapsed');
     const rateEl = document.getElementById('perf-rate');
+    const now = Date.now();
 
-    // Intentar recuperar tiempo de inicio del servidor si no tenemos el local
+    // 1. Manejo de tiempo transcurrido
     if (!syncStartTime && status.start_time && isSyncing) {
-        // Asumimos formato SQL YYYY-MM-DD HH:MM:SS o timestamp
-        const t = new Date(status.start_time.replace(/-/g, "/")); // replace para compatibilidad safari/firefox a veces
-        if (!isNaN(t.getTime())) {
-            syncStartTime = t.getTime();
-        }
+        // Soporta tanto string ISO/MySQL como timestamp numérico
+        const timeVal = status.start_time.toString().replace(/-/g, "/");
+        const t = isNaN(timeVal) ? new Date(timeVal) : new Date(Number(timeVal) * 1000);
+        if (!isNaN(t.getTime())) syncStartTime = t.getTime();
     }
 
     if (syncStartTime && isSyncing) {
-        const elapsedSec = Math.max(0, (Date.now() - syncStartTime) / 1000);
+        const elapsedSec = Math.max(0, (now - syncStartTime) / 1000);
         if (elapsedEl) elapsedEl.textContent = formatDuration(elapsedSec);
 
-        // Usar total_processed si está disponible, sino processedCount local
-        const total = status.total_processed !== undefined ? status.total_processed : processedCount;
-
-        if (rateEl && total > 0 && elapsedSec > 0) {
-            const rate = (total / elapsedSec).toFixed(1);
-            rateEl.textContent = `${rate}/s`;
+        // 2. Cálculo de Velocidad Instantánea (Delta / Time)
+        const currentTotal = status.total_processed || 0;
+        
+        if (lastPulseTime > 0 && now > lastPulseTime) {
+            const deltaTime = (now - lastPulseTime) / 1000;
+            const deltaProcessed = currentTotal - lastProcessedCount;
+            
+            if (deltaProcessed >= 0) {
+                const currentRate = deltaProcessed / deltaTime;
+                
+                // Suavizado (Moving Average de los últimos 5 puntos)
+                rateHistory.push(currentRate);
+                if (rateHistory.length > 5) rateHistory.shift();
+                
+                instantRate = rateHistory.reduce((a, b) => a + b, 0) / rateHistory.length;
+            }
         }
+
+        if (rateEl) {
+            if (instantRate > 0) {
+                rateEl.textContent = `${instantRate.toFixed(1)}/s`;
+                // Efecto de color según velocidad
+                rateEl.style.color = instantRate > 50 ? '#10b981' : (instantRate > 10 ? '#38bdf8' : '#94a3b8');
+            } else if (currentTotal > 0 && elapsedSec > 0) {
+                // Fallback a promedio si no hay pulso reciente
+                const avgRate = (currentTotal / elapsedSec).toFixed(1);
+                rateEl.textContent = `${avgRate}/s`;
+            } else {
+                rateEl.textContent = '--';
+            }
+        }
+
+        lastProcessedCount = currentTotal;
+        lastPulseTime = now;
+
     } else if (!isSyncing) {
-        // Resetear si no está corriendo
+        // Reset
         syncStartTime = null;
+        lastPulseTime = 0;
+        lastProcessedCount = 0;
+        rateHistory = [];
+        instantRate = 0;
         if (elapsedEl) elapsedEl.textContent = '--';
-        if (rateEl) rateEl.textContent = '--';
+        if (rateEl) {
+            rateEl.textContent = '--';
+            rateEl.style.color = '';
+        }
     }
+}
+
+function loadJobHistory() {
+    const baseUrl = getBaseUrl();
+    const tableBody = document.getElementById('job-history-body');
+    if (!tableBody) return;
+
+    fetchJson(baseUrl + 'moodle/jobs/status', {
+        method: 'GET'
+    })
+        .then(res => {
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            return res.json();
+        })
+        .then(data => {
+            const isSuccess = data.success === true || data.status === 'success';
+            if (!isSuccess || !data.data) {
+                throw new Error(data.message || 'No se recibió historial de jobs');
+            }
+
+            const jobs = data.data;
+            if (!Array.isArray(jobs) || jobs.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">No hay jobs recientes</td></tr>';
+                return;
+            }
+
+            tableBody.innerHTML = jobs.map(job => {
+                const syncType = job.sync_type ? job.sync_type.replace(/_/g, ' ') : 'N/A';
+                const progress = typeof job.progress === 'number' ? `${job.progress}%` : 'N/A';
+                const started = job.started_at ? new Date(job.started_at).toLocaleString('es-PY') : '-';
+                const error = job.error ? `<span class="text-danger" title="${job.error}">${job.error}</span>` : '-';
+
+                return `
+                    <tr>
+                        <td>${job.id}</td>
+                        <td>${syncType}</td>
+                        <td>${job.entity || '-'}</td>
+                        <td>${job.status || '-'}</td>
+                        <td>${progress}</td>
+                        <td>${started}</td>
+                        <td>${error}</td>
+                    </tr>
+                `;
+            }).join('');
+        })
+        .catch(err => {
+            console.error('Error cargando historial de jobs:', err);
+            tableBody.innerHTML = `<tr><td colspan="7" class="text-center text-danger py-4">Error cargando historial: ${err.message}</td></tr>`;
+        });
 }
 
 let lastLoggedStatus = null;
@@ -746,8 +1180,20 @@ function updateStatusBadge(status) {
             text = 'Sincronizando';
             break;
         case 'stopping':
-            className += 'running';
-            text = 'Deteniendo';
+            className += 'stopping';
+            text = 'Deteniendo...';
+            if (lastLoggedStatus !== 'stopping') {
+                logMessage('Esperando que el lote actual termine para detener...', 'warning');
+                lastLoggedStatus = 'stopping';
+            }
+            break;
+        case 'stopped':
+            className += 'idle';
+            text = 'Detenido';
+            if (lastLoggedStatus !== 'stopped') {
+                logMessage('Sincronización detenida correctamente por el usuario', 'warning');
+                lastLoggedStatus = 'stopped';
+            }
             break;
         case 'completed':
             className += 'completed';

@@ -141,7 +141,16 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-3 d-flex align-items-end">
+                    <div class="col-md-3 d-flex flex-column gap-2 align-items-end">
+                        <button id="btn-start-worker" class="btn btn-soft-primary w-100">
+                            <i class="bi bi-play-fill me-2"></i>Iniciar Worker
+                        </button>
+                        <button id="btn-stop-worker" class="btn btn-soft-danger w-100">
+                            <i class="bi bi-stop-fill me-2"></i>Detener Worker
+                        </button>
+                        <div>
+                            <span id="worker-status-badge" class="badge bg-soft-secondary text-secondary">Worker: verificando...</span>
+                        </div>
                         <button id="btn-sync-start" class="btn btn-indigo btn-lg w-100 shadow-sm">
                             <i class="bi bi-rocket-takeoff-fill me-2"></i>Iniciar
                         </button>
@@ -156,6 +165,9 @@
                             <div class="d-flex justify-content-between mb-2">
                                 <span id="sync-message" class="fw-800 text-indigo small">Sincronizando...</span>
                                 <span id="sync-percent" class="fw-800 text-slate small">0%</span>
+                            </div>
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                <span id="sync-type-badge" class="badge bg-secondary">Tipo: completa</span>
                             </div>
                             <div class="progress progress-lg">
                                 <div id="sync-progressbar" class="progress-bar bg-gradient-indigo progress-bar-striped progress-bar-animated" role="progressbar" style="--progress: 0%"></div>
@@ -220,6 +232,39 @@
                         <span class="log-time"><?= date('H:i:s') ?></span>
                         <span class="log-msg">Sistema optimizado v3.0 listo. Esperando comandos...</span>
                     </div>
+                </div>
+            </div>
+
+            <!-- Job History Panel -->
+            <div class="glass-panel p-4 animate-up stagger-10 mt-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h5 class="fw-800 text-slate mb-0">Historial de Jobs</h5>
+                        <small class="text-muted">Últimos 10 jobs ejecutados</small>
+                    </div>
+                    <button id="btn-refresh-jobs" class="btn btn-soft-secondary btn-sm">
+                        <i class="bi bi-arrow-clockwise"></i> Refrescar
+                    </button>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover table-sm align-middle mb-0 no-datatable">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Tipo</th>
+                                <th>Entidad</th>
+                                <th>Estado</th>
+                                <th>Progreso</th>
+                                <th>Iniciado</th>
+                                <th>Error</th>
+                            </tr>
+                        </thead>
+                        <tbody id="job-history-body">
+                            <tr>
+                                <td colspan="7" class="text-center text-muted py-4">Cargando historial...</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>

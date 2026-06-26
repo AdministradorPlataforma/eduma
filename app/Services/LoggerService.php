@@ -8,7 +8,7 @@ use PDO;
 use Exception;
 
 class LoggerService {
-    private static $logFile = __DIR__ . '/../../logs/app.log';
+    private static $logDir = __DIR__ . '/../../logs/';
     private static $db = null;
 
     /**
@@ -73,16 +73,16 @@ class LoggerService {
 
     private static function writeLog(string $level, string $message, array $context) {
         $date = date('Y-m-d H:i:s');
+        $logFile = self::$logDir . 'app-' . date('Y-m-d') . '.log';
         $contextStr = !empty($context) ? json_encode($context, JSON_UNESCAPED_UNICODE) : '';
         $logLine = "[$date] [$level] $message $contextStr" . PHP_EOL;
         
         // Asegurar que el directorio logs existe
-        $dir = dirname(self::$logFile);
-        if (!is_dir($dir)) {
-            mkdir($dir, 0777, true);
+        if (!is_dir(self::$logDir)) {
+            mkdir(self::$logDir, 0755, true);
         }
 
-        file_put_contents(self::$logFile, $logLine, FILE_APPEND);
+        file_put_contents($logFile, $logLine, FILE_APPEND);
     }
 
     private static function getDbConnection(): PDO {

@@ -8,7 +8,7 @@ class MoodleConnectionException extends MoodleException {
 
     public function __construct($message, $isTimeout = false, $code = 0, \Throwable $previous = null) {
         $this->isTimeout = $isTimeout;
-        parent::__construct($message, $code, $previous);
+        parent::__construct($message, (int)$code, [], $previous);
     }
 
     public function isTimeout() {

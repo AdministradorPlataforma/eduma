@@ -8,7 +8,7 @@ class MoodleApiException extends MoodleException {
 
     public function __construct($message, $moodleErrorCode = null, $code = 0, \Throwable $previous = null) {
         $this->moodleErrorCode = $moodleErrorCode;
-        parent::__construct($message, $code, $previous);
+        parent::__construct($message, (int)$code, [], $previous);
     }
 
     public function getMoodleErrorCode() {

@@ -21,7 +21,10 @@ class Database {
         $this->host = Env::get('DB_HOST', 'localhost');
         $this->db_name = Env::get('DB_NAME', 'eduma');
         $this->username = Env::get('DB_USER', 'root');
-        $this->password = Env::get('DB_PASSWORD', 'UMA2025');
+        $this->password = Env::get('DB_PASSWORD');
+        if ($this->password === null) {
+            throw new \RuntimeException("Falta configurar DB_PASSWORD en el entorno.");
+        }
     }
 
     public function getConnection(): PDO {
@@ -47,7 +50,7 @@ class Database {
             $mensaje = "Error crítico: No se pudo establecer la conexión con la base de datos.";
             
             // En modo debug, proporcionar detalles específicos del error
-            if (Env::get('APP_DEBUG', true)) {
+            if (Env::get('APP_DEBUG', false)) {
                 $mensaje .= " Detalles técnicos: " . $exception->getMessage() . 
                            " [Servidor: {$this->host}, BD: {$this->db_name}, Usuario: {$this->username}]";
             }

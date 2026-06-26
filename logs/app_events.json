@@ -14,3 +14,38 @@
 {"timestamp":"2026-02-17 14:01:32","level":"SECURITY","message":"Login exitoso usuario: 5141441","user_id":1,"ip":"192.168.1.195","context":[]}
 {"timestamp":"2026-02-23 15:32:11","level":"SECURITY","message":"Login exitoso usuario: 5141441","user_id":1,"ip":"192.168.1.195","context":[]}
 {"timestamp":"2026-02-23 18:25:10","level":"SECURITY","message":"Usuario 1 cerró sesión correctamente.","user_id":1,"ip":"192.168.1.195","context":[]}
+{"timestamp":"2026-03-03 13:33:57","level":"SECURITY","message":"Login exitoso usuario: 5141441","user_id":1,"ip":"192.168.1.195","context":[]}
+{"timestamp":"2026-03-03 13:34:25","level":"SECURITY","message":"Acceso denegado: falta permiso [investigacion.ver]","user_id":1,"ip":"192.168.1.195","context":[]}
+{"timestamp":"2026-03-03 13:53:58","level":"SECURITY","message":"Usuario 1 cerró sesión correctamente.","user_id":1,"ip":"192.168.1.195","context":[]}
+{"timestamp":"2026-03-03 13:54:14","level":"SECURITY","message":"Login exitoso usuario: 5141441","user_id":1,"ip":"192.168.1.195","context":[]}
+{"timestamp":"2026-03-03 17:53:25","level":"SECURITY","message":"Login exitoso usuario: 5141441","user_id":1,"ip":"192.168.1.195","context":[]}
+{"timestamp":"2026-03-23 18:31:59","level":"SECURITY","message":"Login exitoso usuario: 5141441","user_id":1,"ip":"192.168.1.195","context":[]}
+{"timestamp":"2026-03-23 18:59:25","level":"SECURITY","message":"Usuario 1 cerró sesión correctamente.","user_id":1,"ip":"192.168.1.195","context":[]}
+{"timestamp":"2026-03-23 19:00:00","level":"SECURITY","message":"Login exitoso usuario: 5141441","user_id":1,"ip":"192.168.1.195","context":[]}
+{"timestamp":"2026-03-23 19:05:30","level":"SECURITY","message":"Usuario 1 cerró sesión correctamente.","user_id":1,"ip":"192.168.1.195","context":[]}
+{"timestamp":"2026-03-24 16:13:08","level":"SECURITY","message":"Login exitoso usuario: 5141441","user_id":1,"ip":"192.168.1.195","context":[]}
+{"timestamp":"2026-03-24 19:07:31","level":"SECURITY","message":"Usuario 1 cerró sesión correctamente.","user_id":1,"ip":"192.168.1.195","context":[]}
+{"timestamp":"2026-03-25 12:39:17","level":"SECURITY","message":"Login exitoso usuario: 5141441","user_id":1,"ip":"192.168.1.195","context":[]}
+{"timestamp":"2026-03-25 18:51:20","level":"SECURITY","message":"Usuario 1 cerró sesión correctamente.","user_id":1,"ip":"192.168.1.195","context":[]}
+{"timestamp":"2026-04-08 15:00:04","level":"SECURITY","message":"Login exitoso usuario: 5141441","user_id":1,"ip":"192.168.1.195","context":[]}
+{"timestamp":"2026-04-08 15:44:10","level":"SECURITY","message":"Usuario 1 cerró sesión correctamente.","user_id":1,"ip":"192.168.1.195","context":[]}
+{"timestamp":"2026-06-03 15:19:09","level":"SECURITY","message":"Login exitoso usuario: 5141441","user_id":1,"ip":"192.168.1.178","context":[]}
+{"timestamp":"2026-06-03 19:04:31","level":"SECURITY","message":"Usuario 1 cerró sesión correctamente.","user_id":1,"ip":"192.168.1.178","context":[]}
+{"timestamp":"2026-06-03 19:04:55","level":"SECURITY","message":"Login exitoso usuario: 5141441","user_id":1,"ip":"192.168.1.178","context":[]}
+{"timestamp":"2026-06-04 13:35:06","level":"SECURITY","message":"Login exitoso usuario: 5141441","user_id":1,"ip":"192.168.1.178","context":[]}
+{"timestamp":"2026-06-04 14:00:28","level":"SECURITY","message":"Login exitoso usuario: 5141441","user_id":1,"ip":"192.168.1.178","context":[]}
+{"timestamp":"2026-06-04 14:07:07","level":"SECURITY","message":"Login exitoso usuario: 5141441","user_id":1,"ip":"192.168.1.178","context":[]}
+{"timestamp":"2026-06-04 14:12:08","level":"SECURITY","message":"Login exitoso usuario: 5141441","user_id":1,"ip":"192.168.1.178","context":[]}
+{"timestamp":"2026-06-04 14:16:18","level":"SECURITY","message":"Login exitoso usuario: 5141441","user_id":1,"ip":"192.168.1.178","context":[]}
+{"timestamp":"2026-06-04 14:41:06","level":"SECURITY","message":"Login exitoso usuario: 5141441","user_id":1,"ip":"192.168.1.178","context":[]}
+{"timestamp":"2026-06-05 13:38:06","level":"SECURITY","message":"Login exitoso usuario: 5141441","user_id":1,"ip":"192.168.1.178","context":[]}
+{"timestamp":"2026-06-05 18:45:34","level":"SECURITY","message":"Usuario 1 cerró sesión correctamente.","user_id":1,"ip":"192.168.1.178","context":[]}
+{"timestamp":"2026-06-08 13:30:19","level":"SECURITY","message":"Login exitoso usuario: 5141441","user_id":1,"ip":"192.168.1.178","context":[]}
+{"timestamp":"2026-06-08 18:40:32","level":"SECURITY","message":"Usuario 1 cerró sesión correctamente.","user_id":1,"ip":"192.168.1.178","context":[]}
+{"timestamp":"2026-06-24 14:14:30","level":"SECURITY","message":"Login exitoso usuario: 5141441","user_id":1,"ip":"192.168.1.178","context":[]}
+{"timestamp":"2026-06-24 16:01:26","level":"SECURITY","message":"Usuario 1 cerró sesión correctamente.","user_id":1,"ip":"192.168.1.178","context":[]}
+{"timestamp":"2026-06-26 13:35:44","level":"SECURITY","message":"Login exitoso usuario: 5141441","user_id":1,"ip":"192.168.1.178","context":[]}
+{"timestamp":"2026-06-26 14:29:44","level":"SECURITY","message":"Login exitoso usuario: 3968377","user_id":23565,"ip":"192.168.1.178","context":[]}
+{"timestamp":"2026-06-26 14:29:58","level":"SECURITY","message":"Usuario 23565 cerró sesión correctamente.","user_id":23565,"ip":"192.168.1.178","context":[]}
+{"timestamp":"2026-06-26 14:43:37","level":"SECURITY","message":"Login exitoso usuario: 04188899","user_id":23597,"ip":"192.168.1.178","context":[]}
+{"timestamp":"2026-06-26 15:02:31","level":"SECURITY","message":"Usuario 23597 cerró sesión correctamente.","user_id":23597,"ip":"192.168.1.178","context":[]}

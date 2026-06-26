@@ -27,6 +27,17 @@ $options = getopt('', ['daemon', 'sleep::']);
 $isDaemon = isset($options['daemon']);
 $sleepSeconds = isset($options['sleep']) ? (int)$options['sleep'] : 5;
 $workerId = 'W' . getmypid();
+$pidPath = __DIR__ . '/../storage/sync_worker.pid';
+
+if (!is_dir(dirname($pidPath))) {
+    @mkdir(dirname($pidPath), 0755, true);
+}
+@file_put_contents($pidPath, getmypid());
+register_shutdown_function(function () use ($pidPath) {
+    if (file_exists($pidPath) && trim(@file_get_contents($pidPath)) == getmypid()) {
+        @unlink($pidPath);
+    }
+});
 
 echo "=============================================\n";
 echo "  WORKER DE COLAS EDUMA - v2.1\n";

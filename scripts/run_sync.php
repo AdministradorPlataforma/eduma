@@ -37,7 +37,7 @@ use App\Services\LoggerService;
 $type = $argv[1] ?? 'all';
 $force = in_array('--force', $argv);
 
-$validTypes = ['all', 'delta', 'categories', 'courses', 'users', 'enrollments', 'cohorts', 'grades'];
+$validTypes = ['all', 'delta', 'unlocked_users', 'enrollments_2026', 'categories', 'courses', 'users', 'enrollments', 'cohorts', 'grades'];
 
 if (!in_array($type, $validTypes)) {
     echo "ERROR: Tipo de sincronización inválido: {$type}\n";
@@ -80,6 +80,16 @@ try {
         case 'delta':
             echo "Ejecutando sincronización INCREMENTAL...\n\n";
             $result = $service->sincronizarDelta();
+            break;
+
+        case 'unlocked_users':
+            echo "Sincronizando USUARIOS DESBLOQUEADOS...\n\n";
+            $result = $service->sincronizarUsuariosDesbloqueados();
+            break;
+
+        case 'enrollments_2026':
+            echo "Sincronizando MATRÍCULAS 2026...\n\n";
+            $result = $service->sincronizarMatriculas2026();
             break;
             
         case 'categories':

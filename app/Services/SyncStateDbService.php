@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use PDO;
+use App\Services\LoggerService;
 
 /**
  * Servicio de Estado de Sincronización - Basado en Base de Datos
@@ -72,7 +73,7 @@ class SyncStateDbService extends BaseService {
         $jsonState = [
             'status' => 'running',
             'type' => $type,
-            'start_time' => time(),
+            'start_time' => date('Y-m-d H:i:s'),
             'message' => $isResume ? 'Reanudando sincronización...' : 'Iniciando...',
             'stop_requested' => false,
             'batch_id' => $this->currentBatchId
@@ -185,20 +186,83 @@ class SyncStateDbService extends BaseService {
      * Solicita detener la sincronización
      */
     public function requestStop(): void {
+        // Marcar en BD para control de estado y corte de procesos
+        $this->db->exec(
+            "UPDATE sync_status SET last_sync_status = 'stopping' WHERE last_sync_status = 'running'"
+        );
+
+        // Mantener JSON legacy solo para compatibilidad visual.
         $state = $this->getLegacyJsonState();
-        if (($state['status'] ?? '') === 'running') {
-            $state['stop_requested'] = true;
-            $state['message'] = 'Deteniendo...';
-            $this->updateLegacyJsonState($state);
-        }
+        $state['stop_requested'] = true;
+        $state['status'] = 'stopping';
+        $state['message'] = 'Deteniendo...';
+        $this->updateLegacyJsonState($state);
+
+        LoggerService::info("SyncStateDb: Stop solicitado por el usuario");
     }
+
+    private static float $lastShouldStopCheck = 0;
+    private static bool $lastShouldStopResult = false;
 
     /**
      * Verifica si se solicitó detener
      */
     public function shouldStop(): bool {
+        $now = microtime(true);
+        if ($now - self::$lastShouldStopCheck < 2.0) {
+            return self::$lastShouldStopResult;
+        }
+
+        try {
+            $stmt = $this->db->query(
+                "SELECT COUNT(*) FROM sync_status WHERE last_sync_status = 'stopping'"
+            );
+            $result = ((int)$stmt->fetchColumn()) > 0;
+        } catch (\Throwable $e) {
+            $state = $this->getLegacyJsonState();
+            $result = ($state['stop_requested'] ?? false) === true;
+        }
+
+        self::$lastShouldStopCheck = $now;
+        self::$lastShouldStopResult = $result;
+        return $result;
+    }
+
+    private function isQueueWorkerActive(): bool {
+        try {
+            $stmt = $this->db->query("SELECT COUNT(*) FROM queue_jobs WHERE status = 'running'");
+            return ((int)$stmt->fetchColumn()) > 0;
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Marca la sincronización como detenida (estado final) en BD y JSON
+     * Llamado por el orquestador después de ejecutar graceful shutdown
+     */
+    public function markAsStopped(): void {
+        // Actualizar BD
+        $this->db->exec(
+            "UPDATE sync_status SET last_sync_status = 'stopped', last_sync_end = NOW() 
+             WHERE last_sync_status IN ('running', 'stopping')"
+        );
+
+        // Actualizar JSON legacy
         $state = $this->getLegacyJsonState();
-        return ($state['stop_requested'] ?? false) === true;
+        $state['status'] = 'stopped';
+        $state['stop_requested'] = false;
+        $state['message'] = 'Sincronización detenida por el usuario';
+        $state['end_time'] = time();
+        $this->updateLegacyJsonState($state);
+
+        // Log
+        $this->logSync(
+            $state['type'] ?? 'all', 
+            'warning', 
+            'stopped', 
+            'Sincronización detenida por solicitud del usuario'
+        );
     }
 
     /**
@@ -223,9 +287,17 @@ class SyncStateDbService extends BaseService {
 
         // Combinar con JSON legacy para progreso en tiempo real
         $jsonState = $this->getLegacyJsonState();
+        $status = $dbStatus['last_sync_status'] ?? ($jsonState['status'] ?? 'idle');
+
+        if ($status === 'stopping' && !$this->isQueueWorkerActive()) {
+            LoggerService::warning("SyncStateDb: estado 'stopping' sin worker activo, finalizando como 'stopped'", ['type' => $type]);
+            $this->markAsStopped();
+            $status = 'stopped';
+            $jsonState = $this->getLegacyJsonState();
+        }
 
         return [
-            'status' => $jsonState['status'] ?? ($dbStatus['last_sync_status'] ?? 'idle'),
+            'status' => $status,
             'progress' => $jsonState['progress'] ?? 0,
             'message' => $jsonState['message'] ?? 'Listo',
             'type' => $jsonState['type'] ?? $type,
@@ -235,12 +307,12 @@ class SyncStateDbService extends BaseService {
             'total_updated' => $jsonState['total_updated'] ?? 0,
             'total_errors' => $jsonState['total_errors'] ?? ($dbStatus['total_errors'] ?? 0),
             'last_error' => $dbStatus['last_error_message'] ?? null,
-            'stop_requested' => $jsonState['stop_requested'] ?? false,
+            'stop_requested' => $status === 'stopping' || ($jsonState['stop_requested'] ?? false),
             'batch_id' => $this->currentBatchId,
             'estimated_remaining' => $this->calculateRemainingTime(
                 $jsonState['progress'] ?? 0, 
                 $dbStatus['last_sync_start'] ?? ($jsonState['start_time'] ?? null),
-                $jsonState['status'] ?? ($dbStatus['last_sync_status'] ?? 'idle')
+                $status
             )
         ];
     }
@@ -404,13 +476,13 @@ class SyncStateDbService extends BaseService {
         $dir = dirname($path);
         
         if (!file_exists($dir)) {
-            mkdir($dir, 0777, true);
+            mkdir($dir, 0755, true);
         }
 
         $current = $this->getLegacyJsonState();
         $merged = array_merge($current, $newState);
         
-        file_put_contents($path, json_encode($merged, JSON_PRETTY_PRINT));
+        file_put_contents($path, json_encode($merged, JSON_PRETTY_PRINT), LOCK_EX);
     }
 
     // ============================================================
@@ -429,7 +501,14 @@ class SyncStateDbService extends BaseService {
 
     public function getCheckpoint(): ?array {
         $state = $this->getLegacyJsonState();
-        return $state['checkpoint'] ?? null;
+        if (!isset($state['checkpoint']) || !is_array($state['checkpoint'])) {
+            return null;
+        }
+        $cp = $state['checkpoint'];
+        if (!isset($cp['phase']) || !isset($cp['context'])) {
+            return null;
+        }
+        return $cp;
     }
 
     public function clearCheckpoint(): void {

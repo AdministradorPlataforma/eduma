@@ -68,6 +68,11 @@ class BulkDatabaseService extends BaseService {
             $currentChunk++;
             // Reportar progreso cada 5 chunks para no saturar BD
             if ($currentChunk % 5 === 0 || $currentChunk === $totalChunks) {
+                if ($this->stateService->shouldStop()) {
+                    $stats['aborted'] = true;
+                    LoggerService::warning("bulkUpsertUsers: Detención solicitada durante guardado de chunks");
+                    return $stats;
+                }
                 // Rango visual en la UI estipulado de 55% a 70% para esta tarea
                 $percent = 55 + (int)(($currentChunk / $totalChunks) * 15);
                 $this->stateService->updateProgress($percent, "Guardando usuarios: " . ($currentChunk * $this->batchSize) . " de " . count($users));
@@ -78,6 +83,10 @@ class BulkDatabaseService extends BaseService {
                 $stats['inserted'] += $result['inserted'];
                 $stats['updated'] += $result['updated'];
             } catch (\Exception $e) {
+                if ($e instanceof \App\Exceptions\Moodle\StopSyncException || $e->getMessage() === 'USER_STOP_REQUESTED') {
+                    $stats['aborted'] = true;
+                    throw $e;
+                }
                 $stats['errors'] += count($chunk);
                 $this->stateService->recordErrorSummary('usuarios', 'bulk_upsert_failure', $e->getMessage());
                 LoggerService::error("Bulk upsert users failed", [
@@ -245,6 +254,10 @@ class BulkDatabaseService extends BaseService {
     /**
      * Ejecuta un INSERT masivo utilizando INSERT ... VALUES (...), (...), ...
      * 
+     * NOTA: Este método está diseñado PRINCIPALMENTE para registros nuevos.
+     * La cláusula ON DUPLICATE KEY UPDATE solo actualiza `updated_at`,
+     * no los valores reales. Para upsert real, usar executeBulkUpdate o queries específicas.
+     * 
      * @param string $table Nombre de la tabla
      * @param array $records Registros a insertar
      * @param array $columns Columnas en orden
@@ -300,7 +313,11 @@ class BulkDatabaseService extends BaseService {
             $sql = "UPDATE `$table` SET $setClause, updated_at = NOW() WHERE `$keyColumn` = :$keyColumn";
             $stmt = $this->db->prepare($sql);
 
-            foreach ($records as $record) {
+            foreach ($records as $index => $record) {
+                // Verificar detención cada 100 updates para no afectar rendimiento
+                if ($index % 100 === 0 && $this->stateService->shouldStop()) {
+                    throw new \App\Exceptions\Moodle\StopSyncException("USER_STOP_REQUESTED");
+                }
                 $params = [];
                 foreach ($columns as $col) {
                     if ($col !== 'created_at') {
@@ -332,6 +349,11 @@ class BulkDatabaseService extends BaseService {
         $chunks = array_chunk($courses, $this->batchSize);
 
         foreach ($chunks as $chunk) {
+            if ($this->stateService->shouldStop()) {
+                $stats['aborted'] = true;
+                throw new \App\Exceptions\Moodle\StopSyncException("Detención solicitada en cursos");
+            }
+
             try {
                 $values = [];
                 $placeholders = [];
@@ -347,19 +369,22 @@ class BulkDatabaseService extends BaseService {
                 }
 
                 $sql = "INSERT INTO cursos (id_moodle, id_categoria_moodle, fullname, shortname, start_date, visible, created_at, updated_at)
-                        VALUES " . implode(', ', $placeholders) . "
-                        ON DUPLICATE KEY UPDATE
-                        fullname = VALUES(fullname),
-                        shortname = VALUES(shortname),
-                        id_categoria_moodle = VALUES(id_categoria_moodle),
-                        visible = VALUES(visible),
-                        updated_at = NOW()";
+                    VALUES " . implode(', ', $placeholders) . "
+                    ON DUPLICATE KEY UPDATE
+                    fullname = VALUES(fullname),
+                    shortname = VALUES(shortname),
+                    id_categoria_moodle = VALUES(id_categoria_moodle),
+                    visible = VALUES(visible),
+                    updated_at = NOW()";
 
                 $stmt = $this->db->prepare($sql);
                 $stmt->execute($values);
                 $stats['processed'] += count($chunk);
 
             } catch (\Exception $e) {
+                if ($e instanceof \App\Exceptions\Moodle\StopSyncException) {
+                    throw $e;
+                }
                 $stats['errors'] += count($chunk);
                 $this->stateService->recordErrorSummary('cursos', 'bulk_upsert_failure', $e->getMessage());
                 LoggerService::error("Bulk upsert courses failed", ['error' => $e->getMessage()]);
@@ -391,6 +416,7 @@ class BulkDatabaseService extends BaseService {
         }
 
         try {
+            if ($this->stateService->shouldStop()) throw new \App\Exceptions\Moodle\StopSyncException("Detenido en cohortes");
             $sql = "INSERT INTO cohortes (id_moodle, nombre, idnumber, visible, created_at, updated_at)
                     VALUES " . implode(', ', $placeholders) . "
                     ON DUPLICATE KEY UPDATE
@@ -404,6 +430,7 @@ class BulkDatabaseService extends BaseService {
             $stats['processed'] = count($cohorts);
 
         } catch (\Exception $e) {
+            if ($e instanceof \App\Exceptions\Moodle\StopSyncException) throw $e;
             $stats['errors'] = count($cohorts);
             LoggerService::error("Bulk upsert cohorts failed", ['error' => $e->getMessage()]);
         }
@@ -496,6 +523,7 @@ class BulkDatabaseService extends BaseService {
         if (!empty($toInsert)) {
             $chunks = array_chunk($toInsert, $this->batchSize);
             foreach ($chunks as $chunk) {
+                if ($this->stateService->shouldStop()) throw new \App\Exceptions\Moodle\StopSyncException("Stop en categorías");
                 try {
                     $values = [];
                     $placeholders = [];
@@ -520,6 +548,7 @@ class BulkDatabaseService extends BaseService {
                     $stats['inserted'] += count($chunk);
 
                 } catch (\Exception $e) {
+                    if ($e instanceof \App\Exceptions\Moodle\StopSyncException) throw $e;
                     $stats['errors'] += count($chunk);
                     LoggerService::error("Bulk insert categories failed", ['error' => $e->getMessage()]);
                 }
@@ -529,37 +558,9 @@ class BulkDatabaseService extends BaseService {
         // 5. Ejecutar UPDATE masivo (solo los que cambiaron)
         if (!empty($toUpdate)) {
             try {
-                $this->db->beginTransaction();
-                
-                $stmt = $this->db->prepare(
-                    "UPDATE raw_moodle_categorias SET 
-                        name = :name, 
-                        parent_id = :parent_id,
-                        depth = :depth,
-                        path = :path,
-                        idnumber = :idnumber,
-                        data_hash = :data_hash,
-                        updated_at = NOW()
-                    WHERE id = :id"
-                );
-                
-                foreach ($toUpdate as $cat) {
-                    $stmt->execute([
-                        ':id' => $cat['id'],
-                        ':name' => $cat['name'],
-                        ':parent_id' => $cat['parent_id'],
-                        ':depth' => $cat['depth'],
-                        ':path' => $cat['path'],
-                        ':idnumber' => $cat['idnumber'],
-                        ':data_hash' => $cat['data_hash']
-                    ]);
-                    $stats['updated']++;
-                }
-                
-                $this->db->commit();
-                
+                $stats['updated'] += $this->executeBulkUpdate('raw_moodle_categorias', $toUpdate, 'id');
             } catch (\Exception $e) {
-                $this->db->rollBack();
+                if ($e instanceof \App\Exceptions\Moodle\StopSyncException) throw $e;
                 $stats['errors'] += count($toUpdate);
                 LoggerService::error("Bulk update categories failed", ['error' => $e->getMessage()]);
             }
@@ -591,6 +592,12 @@ class BulkDatabaseService extends BaseService {
         $processedChunks = 0;
 
         foreach ($chunks as $chunkIndex => $chunk) {
+            // Verificar detención manual
+            if ($this->stateService->shouldStop()) {
+                $stats['aborted'] = true; // Mantener por si acaso el caller atrapa y mira stats
+                throw new \App\Exceptions\Moodle\StopSyncException("Detenido por el usuario en matrículas");
+            }
+
             // Early-stop check
             if ($this->consecutiveErrors >= self::MAX_CONSECUTIVE_ERRORS) {
                 $this->earlyStopTriggered = true;
@@ -635,6 +642,10 @@ class BulkDatabaseService extends BaseService {
                 $processedChunks++;
 
             } catch (\Exception $e) {
+                if ($e instanceof \App\Exceptions\Moodle\StopSyncException) {
+                    $stats['aborted'] = true;
+                    throw $e;
+                }
                 $stats['errors'] += count($chunk);
                 $this->consecutiveErrors++;
                 $processedChunks++;
@@ -673,27 +684,21 @@ class BulkDatabaseService extends BaseService {
      * @return int Número de matrículas suspendidas
      */
     public function bulkSuspendOrphanEnrollments(int $moodleCourseId, array $activeMoodleUserIds): int {
-        if (empty($activeMoodleUserIds)) {
-            // Si la lista está vacía, significaría que el curso no tiene alumnos.
-            // Es seguro suspender todas las matrículas si la respuesta de Moodle fue "lista vacía" y no error.
-        }
-
-        $tempTableName = "tmp_active_users_" . uniqid();
-        
+        $safeId = preg_replace('/[^a-zA-Z0-9_]/', '', uniqid('', true));
+        $tempTableName = "tmp_active_users_" . $safeId;
         try {
             $this->db->exec("CREATE TEMPORARY TABLE $tempTableName (id_moodle INT UNSIGNED PRIMARY KEY)");
-            
             if (!empty($activeMoodleUserIds)) {
                 $chunks = array_chunk($activeMoodleUserIds, 500);
                 foreach ($chunks as $chunk) {
+                    if ($this->stateService->shouldStop()) {
+                        throw new \App\Exceptions\Moodle\StopSyncException("Stop in orphans");
+                    }
                     $placeholders = implode(',', array_fill(0, count($chunk), '(?)'));
                     $sql = "INSERT INTO $tempTableName (id_moodle) VALUES $placeholders";
-                    $stmt = $this->db->prepare($sql);
-                    $stmt->execute($chunk);
+                    $this->db->prepare($sql)->execute($chunk);
                 }
             }
-
-            // JOIN para detectar huérfanos usando id_moodle tanto en Curso como en Usuario
             $sql = "UPDATE curso_matriculas cm
                     JOIN cursos c ON cm.curso_id = c.id
                     JOIN usuarios u ON cm.usuario_id = u.id
@@ -703,24 +708,16 @@ class BulkDatabaseService extends BaseService {
                       AND NOT EXISTS (
                           SELECT 1 FROM $tempTableName t WHERE t.id_moodle = u.id_moodle
                       )";
-            
             $stmt = $this->db->prepare($sql);
             $stmt->execute([':moodleCourseId' => $moodleCourseId]);
             $count = $stmt->rowCount();
-            
             $this->db->exec("DROP TEMPORARY TABLE IF EXISTS $tempTableName");
-            
-            if ($count > 0) {
-                LoggerService::info("Matrículas suspendidas por baja en Moodle", [
-                    'moodle_course_id' => $moodleCourseId,
-                    'count' => $count
-                ]);
-            }
-            
             return $count;
-
         } catch (\Exception $e) {
             $this->db->exec("DROP TEMPORARY TABLE IF EXISTS $tempTableName");
+            if ($e instanceof \App\Exceptions\Moodle\StopSyncException) {
+                throw $e;
+            }
             LoggerService::error("Error suspendiendo matrículas zombies", ['error' => $e->getMessage()]);
             return 0;
         }
@@ -782,35 +779,30 @@ class BulkDatabaseService extends BaseService {
      */
     public function bulkUpsertGrades(array $grades): array {
         if (empty($grades)) {
-            return ['processed' => 0, 'errors' => 0];
+            return ['processed' => 0, 'errors' => 0, 'inserted' => 0, 'updated' => 0];
         }
 
         $stats = ['processed' => 0, 'errors' => 0, 'inserted' => 0, 'updated' => 0];
         $chunks = array_chunk($grades, $this->batchSize);
-
-        // OPTIMIZACION: Cachear chequeo de columna para evitar consultas repetitivas a information_schema
         static $cachedHashCheck = null;
-        
         if ($cachedHashCheck === null) {
             $cachedHashCheck = $this->columnExists('calificaciones', 'data_hash');
         }
-        
         $hasDataHashColumn = $cachedHashCheck;
 
         foreach ($chunks as $chunk) {
+            if ($this->stateService->shouldStop()) {
+                $stats['aborted'] = true;
+                throw new \App\Exceptions\Moodle\StopSyncException("Stop in grades");
+            }
             try {
                 $values = [];
                 $placeholders = [];
-                
                 foreach ($chunk as $grade) {
-                    // Validación extra de seguridad
                     if (!isset($grade['matricula_id']) || !isset($grade['item_id'])) {
-                        LoggerService::warning("Calificación sin IDs requeridos, saltando", $grade);
                         continue;
                     }
-                    
                     if ($hasDataHashColumn) {
-                        // Con columna de integridad
                         $placeholders[] = "(?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())";
                         $values[] = (int)$grade['matricula_id'];
                         $values[] = (int)$grade['item_id'];
@@ -822,7 +814,6 @@ class BulkDatabaseService extends BaseService {
                         $values[] = $grade['date_graded'] ?? null;
                         $values[] = $grade['data_hash'] ?? null;
                     } else {
-                        // Sin columna de integridad (legacy)
                         $placeholders[] = "(?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())";
                         $values[] = (int)$grade['matricula_id'];
                         $values[] = (int)$grade['item_id'];
@@ -834,57 +825,20 @@ class BulkDatabaseService extends BaseService {
                         $values[] = $grade['date_graded'] ?? null;
                     }
                 }
-
-                if (empty($placeholders)) {
-                    continue;
-                }
-
+                if (empty($placeholders)) continue;
                 if ($hasDataHashColumn) {
-                    $sql = "INSERT INTO calificaciones 
-                            (matricula_id, id_moodle_item, item_nombre, es_nota_final, calificacion_final, calificacion_maxima, feedback, fecha_modificacion, data_hash, created_at, updated_at)
-                            VALUES " . implode(', ', $placeholders) . "
-                            ON DUPLICATE KEY UPDATE 
-                            calificacion_final = VALUES(calificacion_final),
-                            calificacion_maxima = VALUES(calificacion_maxima),
-                            item_nombre = VALUES(item_nombre),
-                            es_nota_final = VALUES(es_nota_final),
-                            feedback = VALUES(feedback),
-                            fecha_modificacion = VALUES(fecha_modificacion),
-                            data_hash = VALUES(data_hash),
-                            updated_at = NOW()";
+                    $sql = "INSERT INTO calificaciones (matricula_id, id_moodle_item, item_nombre, es_nota_final, calificacion_final, calificacion_maxima, feedback, fecha_modificacion, data_hash, created_at, updated_at) VALUES " . implode(', ', $placeholders) . " ON DUPLICATE KEY UPDATE calificacion_final = VALUES(calificacion_final), calificacion_maxima = VALUES(calificacion_maxima), item_nombre = VALUES(item_nombre), es_nota_final = VALUES(es_nota_final), feedback = VALUES(feedback), fecha_modificacion = VALUES(fecha_modificacion), data_hash = VALUES(data_hash), updated_at = NOW()";
                 } else {
-                    $sql = "INSERT INTO calificaciones 
-                            (matricula_id, id_moodle_item, item_nombre, es_nota_final, calificacion_final, calificacion_maxima, feedback, fecha_modificacion, created_at, updated_at)
-                            VALUES " . implode(', ', $placeholders) . "
-                            ON DUPLICATE KEY UPDATE 
-                            calificacion_final = VALUES(calificacion_final),
-                            calificacion_maxima = VALUES(calificacion_maxima),
-                            item_nombre = VALUES(item_nombre),
-                            es_nota_final = VALUES(es_nota_final),
-                            feedback = VALUES(feedback),
-                            fecha_modificacion = VALUES(fecha_modificacion),
-                            updated_at = NOW()";
+                    $sql = "INSERT INTO calificaciones (matricula_id, id_moodle_item, item_nombre, es_nota_final, calificacion_final, calificacion_maxima, feedback, fecha_modificacion, created_at, updated_at) VALUES " . implode(', ', $placeholders) . " ON DUPLICATE KEY UPDATE calificacion_final = VALUES(calificacion_final), calificacion_maxima = VALUES(calificacion_maxima), item_nombre = VALUES(item_nombre), es_nota_final = VALUES(es_nota_final), feedback = VALUES(feedback), fecha_modificacion = VALUES(fecha_modificacion), updated_at = NOW()";
                 }
-
-                $stmt = $this->db->prepare($sql);
-                $stmt->execute($values);
-                
-                $affectedRows = $stmt->rowCount();
+                $this->db->prepare($sql)->execute($values);
                 $stats['processed'] += count($chunk);
-                
-                // Simplificación para reporte: Consideramos todo lo procesado sin error como "guardado"
-                // (Ya sea insertado, actualizado o verificado como existente)
                 $stats['inserted'] += count($chunk);
-
             } catch (\Exception $e) {
                 $stats['errors'] += count($chunk);
-                LoggerService::error("Bulk upsert grades failed", [
-                    'error' => $e->getMessage(),
-                    'chunk_size' => count($chunk)
-                ]);
+                LoggerService::error("Bulk upsert grades failed", ['error' => $e->getMessage()]);
             }
         }
-
         return $stats;
     }
 

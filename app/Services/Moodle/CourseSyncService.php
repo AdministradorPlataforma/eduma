@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Services\Moodle;
 
 use App\Services\LoggerService;
+use App\Exceptions\Moodle\StopSyncException;
 use Config\MoodleWS;
 use PDO;
 
@@ -13,7 +14,7 @@ use PDO;
 class CourseSyncService extends MoodleBaseSyncService {
 
     /**
-     * FASE 2: Sincronizar Cursos
+     * FASE 2: Sincronizar Cursos (Moodle -> Eduma)
      */
     public function sincronizar(): array {
         $this->stats['start_time'] = microtime(true);
@@ -31,10 +32,32 @@ class CourseSyncService extends MoodleBaseSyncService {
             LoggerService::info("Cursos sincronizados", $this->stats);
             return $this->stats;
             
+        } catch (StopSyncException $e) {
+            LoggerService::info("Sincronización de cursos detenida por el usuario");
+            throw $e;
         } catch (\Exception $e) {
             LoggerService::error("Error sincronizando cursos", ['error' => $e->getMessage()]);
             throw $e;
         }
+    }
+
+    public function getCoursesByYear(int $year): array {
+        $allCourses = $this->client->getAllCourses();
+        $filtered = [];
+
+        foreach ($allCourses as $course) {
+            if (empty($course['startdate']) || !is_numeric($course['startdate'])) {
+                continue;
+            }
+
+            $courseYear = (int)date('Y', (int)$course['startdate']);
+            if ($courseYear === $year) {
+                $filtered[] = $course;
+            }
+        }
+
+        LoggerService::info("getCoursesByYear($year): cursos encontrados", ['count' => count($filtered)]);
+        return $filtered;
     }
 
     /**
@@ -50,7 +73,7 @@ class CourseSyncService extends MoodleBaseSyncService {
                 $stmt = $this->db->prepare(
                     "SELECT id_moodle FROM cursos 
                      WHERE visible = 1 
-                     AND YEAR(start_date) >= ? 
+                     AND EXTRACT(YEAR FROM start_date) >= ? 
                      ORDER BY start_date DESC"
                 );
                 $stmt->execute([$currentYear - 1]);
@@ -66,14 +89,21 @@ class CourseSyncService extends MoodleBaseSyncService {
             $processedCourses = 0;
             
             foreach ($chunks as $courseChunk) {
-                if ($this->stateService->shouldStop()) break;
+                if ($this->stateService->shouldStop()) {
+                    throw new StopSyncException("Detención forzada en cursos chunk");
+                }
                 
                 foreach ($courseChunk as $courseId) {
+                    if ($this->stateService->shouldStop()) {
+                        throw new StopSyncException("Detenido por el usuario");
+                    }
                     try {
                         $courseResult = $this->procesarCalificacionesCurso((int)$courseId);
                         $gradeStats['courses_processed']++;
                         $gradeStats['grades_saved'] += $courseResult['saved'] ?? 0;
                         $gradeStats['errors'] += $courseResult['errors'] ?? 0;
+                    } catch (StopSyncException $e) {
+                        throw $e;
                     } catch (\Exception $e) {
                         $gradeStats['errors']++;
                         LoggerService::warning("Error calificaciones curso $courseId", ['error' => $e->getMessage()]);
@@ -88,6 +118,9 @@ class CourseSyncService extends MoodleBaseSyncService {
             $gradeStats['time_seconds'] = round(microtime(true) - $this->stats['start_time'], 2);
             return $gradeStats;
             
+        } catch (StopSyncException $e) {
+            LoggerService::info("Sincronización de calificaciones detenida por el usuario");
+            throw $e;
         } catch (\Exception $e) {
             LoggerService::error("Error sincronizando calificaciones", ['error' => $e->getMessage()]);
             throw $e;
@@ -116,14 +149,24 @@ class CourseSyncService extends MoodleBaseSyncService {
         
         $studentChunks = array_chunk($students, 500);
         foreach ($studentChunks as $chunkStudents) {
+            if ($this->stateService->shouldStop()) {
+                throw new StopSyncException("Detenido por el usuario");
+            }
             $gradePairs = [];
             foreach ($chunkStudents as $student) {
                 $gradePairs[] = ['courseId' => $courseId, 'userId' => (int)$student['id']];
             }
             
-            $gradesResponse = $this->parallelClient->getGradesParallel($gradePairs);
+            $gradesResponse = $this->parallelClient->getGradesParallel(
+                $gradePairs, 
+                fn() => $this->stateService->shouldStop()
+            );
             if (empty($gradesResponse['results'])) continue;
             
+            if ($this->stateService->shouldStop()) {
+                throw new StopSyncException("Detenido por el usuario");
+            }
+
             $chunkStudentIds = array_column($chunkStudents, 'id');
             $enrollmentMap = $this->bulkDb->getEnrollmentIdMap([$courseId], $chunkStudentIds);
             

@@ -110,7 +110,8 @@ class SyncCleanupService extends BaseService {
         }
 
         // Usar nombre único para evitar colisiones en concurrencia
-        $tempTable = 'tmp_moodle_users_' . uniqid();
+        $safeId = preg_replace('/[^a-zA-Z0-9_]/', '', uniqid('', true));
+        $tempTable = 'tmp_moodle_users_' . $safeId;
 
         // Crear tabla temporal con IDs de Moodle activos
         $this->db->exec("DROP TEMPORARY TABLE IF EXISTS $tempTable");
@@ -185,7 +186,8 @@ class SyncCleanupService extends BaseService {
         }
 
         // Usar nombre único
-        $tempTable = 'tmp_moodle_courses_' . uniqid();
+        $safeId = preg_replace('/[^a-zA-Z0-9_]/', '', uniqid('', true));
+        $tempTable = 'tmp_moodle_courses_' . $safeId;
 
         // Crear tabla temporal
         $this->db->exec("DROP TEMPORARY TABLE IF EXISTS $tempTable");

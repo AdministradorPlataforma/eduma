@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace Modules\Moodle;
 
 use Config\MoodleWS;
-use App\Exceptions\MoodleException;
+use App\Exceptions\Moodle\MoodleException;
 use App\Services\LoggerService;
 
 /**
@@ -84,7 +84,7 @@ class MoodleParallelClient {
      * @param bool $withRetries Habilitar reintentos para requests fallidos
      * @return array Resultados indexados por 'key'
      */
-    public function executeParallel(array $requests, bool $withRetries = true): array {
+    public function executeParallel(array $requests, bool $withRetries = true, ?callable $shouldStopCallback = null): array {
         if (empty($requests)) {
             return ['results' => [], 'errors' => [], 'stats' => ['total' => 0, 'success' => 0, 'failed' => 0]];
         }
@@ -115,7 +115,18 @@ class MoodleParallelClient {
         $processedChunks = 0;
         
         foreach ($chunks as $chunkIndex => $chunk) {
-            // Verificar circuit breaker en cada chunk
+            // 1. Verificar si se solicitó detener el proceso (Prioridad Alta)
+            if ($shouldStopCallback && $shouldStopCallback() === true) {
+                $aborted = true;
+                $abortReason = 'stop_requested';
+                LoggerService::warning("MoodleParallelClient: Detención solicitada manualmente, abortando chunks restantes", [
+                    'processed' => count($results),
+                    'remaining_chunks' => $totalChunks - $processedChunks
+                ]);
+                break;
+            }
+
+            // 2. Verificar circuit breaker en cada chunk
             if ($this->isCircuitOpen()) {
                 $aborted = true;
                 $abortReason = 'circuit_breaker';
@@ -127,7 +138,7 @@ class MoodleParallelClient {
                 break;
             }
 
-            $chunkResults = $this->executeChunkWithRetries($chunk, $withRetries);
+            $chunkResults = $this->executeChunkWithRetries($chunk, $withRetries, $shouldStopCallback);
             $results = array_merge($results, $chunkResults['success']);
             $errors = array_merge($errors, $chunkResults['errors']);
             $processedChunks++;
@@ -172,8 +183,8 @@ class MoodleParallelClient {
     /**
      * Ejecuta un chunk con reintentos para requests fallidos
      */
-    private function executeChunkWithRetries(array $requests, bool $withRetries): array {
-        $chunkResults = $this->executeChunk($requests);
+    private function executeChunkWithRetries(array $requests, bool $withRetries, ?callable $shouldStopCallback = null): array {
+        $chunkResults = $this->executeChunk($requests, $shouldStopCallback);
         
         // Si no hay reintentos o no hay errores, retornar directamente
         if (!$withRetries || empty($chunkResults['errors'])) {
@@ -208,8 +219,8 @@ class MoodleParallelClient {
                 'retry_count' => count($retriableErrors)
             ]);
 
-            $retryRequests = array_values($retriableErrors);
-            $retryResults = $this->executeChunk($retryRequests);
+            $retryRequests = $retriableErrors;
+            $retryResults = $this->executeChunk($retryRequests, $shouldStopCallback);
 
             // Mover éxitos de este reintento al resultado final
             foreach ($retryResults['success'] as $key => $data) {
@@ -258,7 +269,7 @@ class MoodleParallelClient {
     /**
      * Ejecuta un chunk de requests en paralelo
      */
-    private function executeChunk(array $requests): array {
+    private function executeChunk(array $requests, ?callable $shouldStopCallback = null): array {
         $multiHandle = curl_multi_init();
         $curlHandles = [];
         $results = ['success' => [], 'errors' => []];
@@ -277,85 +288,98 @@ class MoodleParallelClient {
 
         // Ejecutar en paralelo
         $running = null;
-        do {
-            $status = curl_multi_exec($multiHandle, $running);
-            if ($status > CURLM_OK) {
-                break;
+        try {
+            do {
+                $status = curl_multi_exec($multiHandle, $running);
+                if ($status > CURLM_OK) {
+                    break;
+                }
+                // Revisar detención durante la descarga
+                if ($shouldStopCallback && $shouldStopCallback() === true) {
+                    LoggerService::warning("MoodleParallelClient: Detención solicitada, cancelando curl_multi_exec");
+                    throw new \App\Exceptions\Moodle\StopSyncException("Detenido en curl_multi_exec");
+                }
+                // Esperar actividad (evita CPU 100%)
+                if ($running > 0) {
+                    curl_multi_select($multiHandle, 0.1);
+                }
+            } while ($running > 0);
+
+            // Recoger resultados
+            foreach ($curlHandles as $key => $data) {
+                $ch = $data['handle'];
+                $response = curl_multi_getcontent($ch);
+                $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                $error = curl_error($ch);
+                
+                curl_multi_remove_handle($multiHandle, $ch);
+                curl_close($ch);
+
+                if ($error) {
+                    $results['errors'][$key] = [
+                        'error' => "CURL Error: $error",
+                        'request' => $data['request']
+                    ];
+                    $this->countError("CURL Error: $error");
+                    continue;
+                }
+
+                if ($httpCode >= 400) {
+                    $results['errors'][$key] = [
+                        'error' => "HTTP $httpCode",
+                        'request' => $data['request']
+                    ];
+                    $this->countError("HTTP $httpCode");
+                    continue;
+                }
+
+                // Verificar si la respuesta es vacía (indica timeout o crash del proceso remoto)
+                if (empty($response)) {
+                    $results['errors'][$key] = [
+                        'error' => 'Empty response (possible timeout/server crash)',
+                        'request' => $data['request']
+                    ];
+                    $this->countError('Empty response');
+                    continue;
+                }
+
+                // Decodificar JSON
+                $response = $this->cleanJsonResponse($response ?? '');
+                $decoded = json_decode($response, true);
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    $results['errors'][$key] = [
+                        'error' => 'JSON decode error: ' . json_last_error_msg(),
+                        'request' => $data['request'],
+                        'response_preview' => substr($response ?? '', 0, 500)
+                    ];
+                    $this->countError('JSON decode error');
+                    continue;
+                }
+
+                // Verificar error de Moodle
+                if (isset($decoded['exception'])) {
+                    $results['errors'][$key] = [
+                        'error' => $decoded['message'] ?? 'Moodle exception',
+                        'errorcode' => $decoded['errorcode'] ?? 'unknown',
+                        'request' => $data['request']
+                    ];
+                    $this->countError($decoded['exception']);
+                    continue;
+                }
+
+                $results['success'][$key] = $decoded;
             }
-            // Esperar actividad (evita CPU 100%)
-            if ($running > 0) {
-                curl_multi_select($multiHandle, 0.1);
+        } finally {
+            // Asegurar limpieza de handles incluso si se lanza StopSyncException
+            foreach ($curlHandles as $key => $data) {
+                if (is_resource($data['handle']) || (is_object($data['handle']) && get_class($data['handle']) === 'CurlHandle')) {
+                    curl_multi_remove_handle($multiHandle, $data['handle']);
+                    curl_close($data['handle']);
+                }
             }
-        } while ($running > 0);
-
-        // Recoger resultados
-        foreach ($curlHandles as $key => $data) {
-            $ch = $data['handle'];
-            $response = curl_multi_getcontent($ch);
-            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            $error = curl_error($ch);
-            
-            curl_multi_remove_handle($multiHandle, $ch);
-            curl_close($ch);
-
-            if ($error) {
-                $results['errors'][$key] = [
-                    'error' => "CURL Error: $error",
-                    'request' => $data['request']
-                ];
-                $this->countError("CURL Error: $error");
-                continue;
-            }
-
-            if ($httpCode >= 400) {
-                $results['errors'][$key] = [
-                    'error' => "HTTP $httpCode",
-                    'request' => $data['request']
-                ];
-                $this->countError("HTTP $httpCode");
-                continue;
-            }
-
-            // Verificar si la respuesta es vacía (indica timeout o crash del proceso remoto)
-            if (empty($response)) {
-                $results['errors'][$key] = [
-                    'error' => 'Empty response (possible timeout/server crash)',
-                    'request' => $data['request']
-                ];
-                $this->countError('Empty response');
-                continue;
-            }
-
-            // Decodificar JSON
-            $response = $this->cleanJsonResponse($response ?? '');
-            $decoded = json_decode($response, true);
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                $results['errors'][$key] = [
-                    'error' => 'JSON decode error: ' . json_last_error_msg(),
-                    'request' => $data['request'],
-                    'response_preview' => substr($response ?? '', 0, 500)
-                ];
-                $this->countError('JSON decode error');
-                continue;
-            }
-
-            // Verificar error de Moodle
-            if (isset($decoded['exception'])) {
-                $results['errors'][$key] = [
-                    'error' => $decoded['message'] ?? 'Moodle exception',
-                    'errorcode' => $decoded['errorcode'] ?? 'unknown',
-                    'request' => $data['request']
-                ];
-                $this->countError($decoded['exception']);
-                continue;
-            }
-
-            $results['success'][$key] = $decoded;
-
-
+            curl_multi_close($multiHandle);
         }
-
-        curl_multi_close($multiHandle);
+        
         return $results;
     }
 
@@ -459,9 +483,12 @@ class MoodleParallelClient {
                 'Connection: keep-alive' // Conexión persistente
             ],
             // Optimizaciones de rendimiento
-            CURLOPT_TCP_FASTOPEN => true,
             CURLOPT_TCP_NODELAY => true,
         ]);
+        
+        if (defined('CURLOPT_TCP_FASTOPEN')) {
+            curl_setopt($ch, CURLOPT_TCP_FASTOPEN, true);
+        }
 
         // Configuración SSL
         if (MoodleWS::shouldVerifySSL()) {
@@ -483,7 +510,7 @@ class MoodleParallelClient {
      * @param array $courseIds Lista de IDs de cursos
      * @return array [courseId => [users...]]
      */
-    public function getEnrolledUsersParallel(array $courseIds): array {
+    public function getEnrolledUsersParallel(array $courseIds, ?callable $shouldStopCallback = null): array {
         $requests = [];
         foreach ($courseIds as $courseId) {
             $requests[] = [
@@ -493,7 +520,7 @@ class MoodleParallelClient {
             ];
         }
 
-        $response = $this->executeParallel($requests);
+        $response = $this->executeParallel($requests, true, $shouldStopCallback);
         return $response['results'];
     }
 
@@ -506,7 +533,7 @@ class MoodleParallelClient {
      * @return array Resultados indexados por "courseId_userId"
      * @throws MoodleException Si se exceden límites de seguridad
      */
-    public function getGradesParallel(array $pairs): array {
+    public function getGradesParallel(array $pairs, ?callable $shouldStopCallback = null): array {
         // Límite de seguridad para prevenir abuso/DoS
         $maxPairs = 2000;
         if (count($pairs) > $maxPairs) {
@@ -562,7 +589,7 @@ class MoodleParallelClient {
             return ['results' => [], 'errors' => [], 'stats' => ['total' => 0]];
         }
 
-        $response = $this->executeParallel($requests);
+        $response = $this->executeParallel($requests, true, $shouldStopCallback);
         return $response;
     }
 
@@ -603,7 +630,7 @@ class MoodleParallelClient {
      * @param array $userIds Lista de IDs
      * @return array Usuarios encontrados
      */
-    public function getUsersByIdsParallel(array $userIds): array {
+    public function getUsersByIdsParallel(array $userIds, ?callable $shouldStopCallback = null): array {
         // Dividir en chunks de USER_BATCH_SIZE
         $chunks = array_chunk($userIds, MoodleWS::USER_BATCH_SIZE);
         $requests = [];
@@ -619,7 +646,7 @@ class MoodleParallelClient {
             ];
         }
 
-        $response = $this->executeParallel($requests);
+        $response = $this->executeParallel($requests, true, $shouldStopCallback);
         
         // Aplanar resultados
         $allUsers = [];

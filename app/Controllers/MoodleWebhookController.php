@@ -25,16 +25,14 @@ class MoodleWebhookController extends BaseController
      */
     public function handle()
     {
-        // Validar Token de seguridad
-        $token = $_GET['token'] ?? $_SERVER['HTTP_X_MOODLE_TOKEN'] ?? null;
-        $expectedToken = \Config\Env::get('MOODLE_WEBHOOK_TOKEN');
+        $payloadRaw = file_get_contents('php://input');
 
-        if (!$token || $token !== $expectedToken) {
-            LoggerService::warning("Intento de acceso no autorizado al Webhook de Moodle", ['ip' => $_SERVER['REMOTE_ADDR']]);
+        if (!$this->validateWebhookRequest($payloadRaw)) {
+            LoggerService::warning("Intento de acceso no autorizado o firma inválida en Webhook de Moodle", ['ip' => $_SERVER['REMOTE_ADDR']]);
             return ApiResponse::error('Unauthorized', 401);
         }
 
-        $payload = json_decode(file_get_contents('php://input'), true);
+        $payload = json_decode($payloadRaw, true);
 
         if (!$payload || !isset($payload['eventname'])) {
             return ApiResponse::error('Payload inválido');
@@ -48,5 +46,33 @@ class MoodleWebhookController extends BaseController
         $this->queueService->dispatch($job);
 
         return ApiResponse::success([], 'Evento encolado correctamente');
+    }
+
+    private function validateWebhookRequest(string $payloadRaw): bool
+    {
+        $secret = \Config\Env::get('MOODLE_WEBHOOK_SECRET');
+        $signature = $_SERVER['HTTP_X_MOODLE_SIGNATURE'] ?? $_SERVER['HTTP_X_SIGNATURE'] ?? null;
+        $timestamp = $_SERVER['HTTP_X_MOODLE_TIMESTAMP'] ?? null;
+        $token = $_GET['token'] ?? $_SERVER['HTTP_X_MOODLE_TOKEN'] ?? null;
+        $expectedToken = \Config\Env::get('MOODLE_WEBHOOK_TOKEN');
+
+        if (!empty($secret)) {
+            if (empty($signature) || empty($timestamp)) {
+                return false;
+            }
+
+            if (!ctype_digit((string)$timestamp) || abs(time() - (int)$timestamp) > 300) {
+                return false;
+            }
+
+            $expected = hash_hmac('sha256', $timestamp . '.' . $payloadRaw, $secret);
+            return hash_equals($expected, $signature);
+        }
+
+        if (empty($token) || $token !== $expectedToken) {
+            return false;
+        }
+
+        return true;
     }
 }

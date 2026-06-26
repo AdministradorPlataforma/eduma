@@ -45,6 +45,7 @@ class MoodleWS {
         'GET_USERS_BY_FIELD' => 'core_user_get_users_by_field', // Batch por campo
         'GET_COHORTS' => 'core_cohort_get_cohorts',             
         'GET_COURSE_GRADES' => 'gradereport_user_get_grade_items', // Grades per course/user
+        'GET_COURSE_GRADES_BULK' => 'core_grades_get_grades',      // Bulk grades
         'GET_ENROLLED_USERS' => 'core_enrol_get_enrolled_users',   // To map users to course for grades
         'SITE_INFO' => 'core_webservice_get_site_info',          // Health check
     ];
@@ -80,7 +81,7 @@ class MoodleWS {
             // Si alguien intenta deshabilitar SSL en producción, logear y forzar
             if ($envVerify !== null && !filter_var($envVerify, FILTER_VALIDATE_BOOLEAN)) {
                 // Usar LoggerService si está disponible
-                if (class_exists('\\App\\Services\\LoggerService')) {
+                if (class_exists('\App\Services\LoggerService')) {
                     \App\Services\LoggerService::warning(
                         "SEGURIDAD: Intento de deshabilitar SSL en producción ignorado",
                         ['env_value' => $envVerify]
@@ -101,7 +102,7 @@ class MoodleWS {
         $verify = filter_var($envVerify, FILTER_VALIDATE_BOOLEAN);
         
         // Warning si se deshabilita incluso en desarrollo
-        if (!$verify && class_exists('\\App\\Services\\LoggerService')) {
+        if (!$verify && class_exists('\App\Services\LoggerService')) {
             \App\Services\LoggerService::info(
                 "MOODLE_VERIFY_SSL deshabilitado en entorno de desarrollo",
                 ['app_env' => $appEnv]

@@ -9,6 +9,7 @@ use App\Services\Moodle\UserSyncService;
 use App\Services\SyncStateDbService;
 use App\Services\SyncCleanupService;
 use App\Services\LoggerService;
+use App\Exceptions\Moodle\StopSyncException;
 use Config\MoodleWS;
 use PDO;
 
@@ -172,7 +173,13 @@ class MoodleSyncOptimizedService extends BaseService {
             
             return $this->getStats();
 
+        } catch (StopSyncException $e) {
+            LoggerService::info("Sincronización detenida por el usuario (StopSyncException)");
+            return $this->handleStop();
         } catch (\Exception $e) {
+            if ($e->getMessage() === 'USER_STOP_REQUESTED' || $e instanceof StopSyncException) {
+                return $this->handleStop();
+            }
             $this->stateService->finishBatch('error', $this->stats);
             $this->stateService->errorSync($e->getMessage());
             $this->stats['status'] = 'error';
@@ -200,7 +207,23 @@ class MoodleSyncOptimizedService extends BaseService {
     }
 
     private function handleStop(): array {
-        $this->stateService->updateProgress($this->stateService->getProgress(), 'Detenido por usuario');
+        LoggerService::info("Orquestador: Ejecutando graceful shutdown", $this->stats);
+        
+        // 1. Actualizar progreso con mensaje final
+        $this->stateService->updateProgress(
+            $this->stateService->getProgress(), 
+            'Sincronización detenida por el usuario'
+        );
+        
+        // 2. Marcar batch como detenido
+        $this->stateService->finishBatch('stopped', $this->stats);
+        
+        // 3. Marcar la sincronización como completada (estado 'stopped') en DB
+        $this->stateService->markAsStopped();
+        
+        // 4. Limpiar checkpoint para que no intente reanudar
+        $this->stateService->clearCheckpoint();
+        
         $this->stats['status'] = 'stopped';
         return $this->getStats();
     }
@@ -218,7 +241,61 @@ class MoodleSyncOptimizedService extends BaseService {
         }
     }
 
+    public function sincronizarUsuariosDesbloqueados(): array {
+        $this->stateService->startSync('unlocked_users');
+        $this->stateService->startBatch('unlocked_users');
+        try {
+            $res = $this->userService->sincronizarUsuariosDesbloqueados();
+            $this->stateService->finishBatch('completed', $res);
+            $this->stateService->completeSync();
+            return $res;
+        } catch (\Exception $e) {
+            $this->stateService->errorSync($e->getMessage());
+            throw $e;
+        }
+    }
+
+    public function sincronizarMatriculas2026(): array {
+        $this->stateService->startSync('enrollments_2026');
+        $this->stateService->startBatch('enrollments_2026');
+        try {
+            $courses = $this->courseService->getCoursesByYear(2026);
+            $res = $this->userService->sincronizarMatriculasPorCursos($courses);
+            $this->stateService->finishBatch('completed', $res);
+            $this->stateService->completeSync();
+            return $res;
+        } catch (\Exception $e) {
+            $this->stateService->errorSync($e->getMessage());
+            throw $e;
+        }
+    }
+
     public function sincronizarCalificaciones(?array $courseIds = null): array {
+        return $this->courseService->sincronizarCalificaciones($courseIds);
+    }
+
+    // Wrappers para compatibilidad con SyncMoodleOptimizedJob
+    public function sincronizarCategorias(): array {
+        return $this->categoryService->sincronizar();
+    }
+
+    public function sincronizarCursosOptimizado(): array {
+        return $this->courseService->sincronizar();
+    }
+
+    public function sincronizarUsuariosOptimizado(bool $force = false, array $options = []): array {
+        return $this->userService->sincronizar($options);
+    }
+
+    public function sincronizarMatriculasOptimizado(): array {
+        return $this->userService->sincronizarMatriculas();
+    }
+
+    public function sincronizarCohortesOptimizado(): array {
+        return $this->userService->sincronizarCohortes();
+    }
+
+    public function sincronizarCalificacionesOptimizado(?array $courseIds = null): array {
         return $this->courseService->sincronizarCalificaciones($courseIds);
     }
 }

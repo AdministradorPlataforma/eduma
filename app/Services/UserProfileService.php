@@ -17,14 +17,16 @@ use PDO;
  * 
  * IDEMPOTENCIA: Usa INSERT IGNORE para evitar duplicados y errores en re-ejecuciones.
  * 
- * @version 1.0
+ * @version 1.1
  */
 class UserProfileService extends BaseService {
 
     private PDO $db;
+    private SyncStateDbService $stateService;
 
-    public function __construct(PDO $db) {
+    public function __construct(PDO $db, SyncStateDbService $stateService) {
         $this->db = $db;
+        $this->stateService = $stateService;
     }
 
     /**
@@ -61,12 +63,11 @@ class UserProfileService extends BaseService {
         return $stats;
     }
 
-    /**
-     * Crea registros en tabla `estudiantes` para usuarios que aún no los tienen
-     * 
-     * @return int Número de perfiles creados
-     */
     private function crearPerfilesEstudiantesFaltantes(): int {
+        if ($this->stateService->shouldStop()) {
+             throw new \App\Exceptions\Moodle\StopSyncException("Detenido antes de perfiles estudiantes");
+        }
+
         // Subquery: usuarios con es_estudiante=1 que NO existen en tabla estudiantes
         $sql = "INSERT INTO estudiantes (usuario_id, created_at, updated_at)
                 SELECT u.id, NOW(), NOW()
@@ -79,15 +80,14 @@ class UserProfileService extends BaseService {
         $stmt = $this->db->prepare($sql);
         $stmt->execute();
         
-        return $stmt->rowCount();
+        return (int)$stmt->rowCount();
     }
 
-    /**
-     * Crea registros en tabla `docentes` para usuarios que aún no los tienen
-     * 
-     * @return int Número de perfiles creados
-     */
     private function crearPerfilesDocentesFaltantes(): int {
+        if ($this->stateService->shouldStop()) {
+             throw new \App\Exceptions\Moodle\StopSyncException("Detenido antes de perfiles docentes");
+        }
+
         // Subquery: usuarios con es_docente=1 que NO existen en tabla docentes
         $sql = "INSERT INTO docentes (usuario_id, created_at, updated_at)
                 SELECT u.id, NOW(), NOW()
@@ -100,7 +100,7 @@ class UserProfileService extends BaseService {
         $stmt = $this->db->prepare($sql);
         $stmt->execute();
         
-        return $stmt->rowCount();
+        return (int)$stmt->rowCount();
     }
 
     /**

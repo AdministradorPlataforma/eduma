@@ -162,6 +162,9 @@ $router->group(['middleware' => 'auth'], function($r) {
         // Sincronización Asíncrona (SSE y Estado)
         $r->group(['prefix' => 'sync'], function($r) {
             $r->post('asyncStart', [MoodleController::class, 'asyncStart']);
+            $r->post('start-worker', [MoodleController::class, 'startWorker']);
+            $r->post('stop-worker', [MoodleController::class, 'stopWorker']);
+            $r->get('worker-status', [MoodleController::class, 'workerStatus']);
             $r->post('asyncStop', [MoodleController::class, 'asyncStop']);
             $r->get('getAsyncStatus', [MoodleController::class, 'getAsyncStatus']);
             $r->get('streamProgress', [MoodleController::class, 'streamProgress']);

@@ -5,6 +5,7 @@ namespace Modules\Moodle;
 
 use Config\MoodleWS;
 use App\Exceptions\Moodle\MoodleException;
+use App\Exceptions\Moodle\StopSyncException;
 use App\Services\LoggerService;
 
 /**
@@ -40,7 +41,38 @@ class MoodleClient {
     public function __construct() {
         $this->token = MoodleWS::getToken();
         $this->baseUrl = MoodleWS::getUrl();
+        self::$lastStopCheck = 0;
+        self::$stopSignalCached = false;
         self::loadCircuitState();
+    }
+
+    private static float $lastStopCheck = 0;
+    private static bool $stopSignalCached = false;
+
+    private static function checkStopSignal(): bool {
+        $now = microtime(true);
+        if ($now - self::$lastStopCheck < 0.5) {
+            return self::$stopSignalCached;
+        }
+
+        self::$lastStopCheck = $now;
+        self::$stopSignalCached = self::queryStopRequestFromDb();
+        return self::$stopSignalCached;
+    }
+
+    private static function queryStopRequestFromDb(): bool {
+        try {
+            $container = \App\Core\Container::getInstance();
+            $db = $container->get('db');
+            if (!($db instanceof \PDO)) {
+                return false;
+            }
+
+            $stmt = $db->query("SELECT COUNT(*) FROM sync_status WHERE last_sync_status = 'stopping'");
+            return ((int)$stmt->fetchColumn()) > 0;
+        } catch (\Throwable $e) {
+            return false;
+        }
     }
 
     /**
@@ -74,7 +106,7 @@ class MoodleClient {
         $file = self::getCircuitFile();
         $dir = dirname($file);
         if (!is_dir($dir)) {
-            @mkdir($dir, 0777, true);
+            @mkdir($dir, 0755, true);
         }
 
         $data = [
@@ -82,7 +114,7 @@ class MoodleClient {
             'open_time' => self::$circuitOpenTime,
             'updated_at' => time()
         ];
-        file_put_contents($file, json_encode($data));
+        file_put_contents($file, json_encode($data), LOCK_EX);
     }
 
     /**
@@ -144,9 +176,10 @@ class MoodleClient {
      */
     public function healthCheck(): array {
         try {
-            // Usar SITE_INFO como prueba de conexión (más ligero y estándar)
+            // Health check usa executeCallDirect() sin callback de stop
+            // para que NUNCA se aborte por una señal de detención de sync
             $startTime = microtime(true);
-            $siteInfo = $this->call(MoodleWS::FUNCTIONS['SITE_INFO']);
+            $siteInfo = $this->executeCallDirect(MoodleWS::FUNCTIONS['SITE_INFO']);
             $elapsed = round((microtime(true) - $startTime) * 1000);
             
             return [
@@ -164,6 +197,68 @@ class MoodleClient {
                 'error' => $e->getMessage()
             ];
         }
+    }
+
+    /**
+     * Ejecuta una llamada directa sin callback de stop signal.
+     * Usado por healthCheck y otras operaciones que no deben ser interrumpidas.
+     */
+    private function executeCallDirect(string $functionName, array $params = []): array {
+        $params['wstoken'] = $this->token;
+        $params['wsfunction'] = $functionName;
+        $params['moodlewsrestformat'] = 'json';
+
+        $ch = curl_init();
+        curl_setopt_array($ch, [
+            CURLOPT_URL => $this->baseUrl,
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => http_build_query($params),
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => 30, // Health check: timeout corto
+            CURLOPT_CONNECTTIMEOUT => 10,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_MAXREDIRS => 3,
+            CURLOPT_HTTPHEADER => [
+                'Content-Type: application/x-www-form-urlencoded',
+                'Accept: application/json'
+            ],
+        ]);
+
+        // SSL
+        if (MoodleWS::shouldVerifySSL()) {
+            $cacertPath = dirname(__DIR__, 2) . '/config/cacert.pem';
+            if (file_exists($cacertPath)) {
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+                curl_setopt($ch, CURLOPT_CAINFO, realpath($cacertPath));
+            }
+        } else {
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        }
+
+        $response = curl_exec($ch);
+        $error = curl_error($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($error) {
+            throw new \App\Exceptions\Moodle\MoodleConnectionException("Health check CURL: $error", false);
+        }
+        if (empty($response)) {
+            throw new \App\Exceptions\Moodle\MoodleConnectionException('Respuesta vacía', true);
+        }
+        if ($httpCode >= 400) {
+            throw new \App\Exceptions\Moodle\MoodleConnectionException("HTTP $httpCode", false);
+        }
+
+        $decoded = json_decode($response, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new \App\Exceptions\Moodle\MoodleApiException('JSON error: ' . json_last_error_msg(), 'JSON_ERROR');
+        }
+        if (isset($decoded['exception'])) {
+            throw new \App\Exceptions\Moodle\MoodleApiException($decoded['message'] ?? 'Error', $decoded['errorcode'] ?? 'unknown');
+        }
+
+        return $decoded;
     }
 
     /**
@@ -246,7 +341,12 @@ class MoodleClient {
             CURLOPT_HTTPHEADER => [
                 'Content-Type: application/x-www-form-urlencoded',
                 'Accept: application/json'
-            ]
+            ],
+            // Callback de progreso para detención inmediata (v4.0)
+            CURLOPT_NOPROGRESS => false,
+            CURLOPT_PROGRESSFUNCTION => function() {
+                return self::checkStopSignal() ? 1 : 0;
+            }
         ]);
         
         // Configuración SSL
@@ -271,6 +371,10 @@ class MoodleClient {
 
         // 1. Errores de Conectividad (Throw ConnectionException)
         if ($error) {
+            if ($errno === 42) {
+                LoggerService::warning("MoodleClient: cURL abortado por solicitud del usuario (Stop Requested)");
+                throw new StopSyncException('cURL abort');
+            }
             throw new \App\Exceptions\Moodle\MoodleConnectionException("Error CURL ($errno): $error", ($errno === 28)); // 28 is Timeout
         }
 
@@ -426,6 +530,26 @@ class MoodleClient {
     }
 
     /**
+     * Obtiene cursos cuyo inicio cae en un año específico.
+     */
+    public function getCoursesByYear(int $year): array {
+        $courses = $this->getAllCourses();
+        $filtered = [];
+
+        foreach ($courses as $course) {
+            if (empty($course['startdate']) || !is_numeric($course['startdate'])) {
+                continue;
+            }
+            $courseYear = (int)date('Y', (int)$course['startdate']);
+            if ($courseYear === $year) {
+                $filtered[] = $course;
+            }
+        }
+
+        return $filtered;
+    }
+
+    /**
      * Obtiene cursos de una categoría específica (Más eficiente)
      */
     public function getCoursesByCategory(int $categoryId): array {
@@ -498,9 +622,6 @@ class MoodleClient {
     /**
      * Obtiene estadísticas del circuit breaker (para monitoreo)
      */
-    /**
-     * Obtiene estadísticas del circuit breaker (para monitoreo)
-     */
     public static function getCircuitBreakerStatus(): array {
         self::loadCircuitState();
         return [
@@ -557,20 +678,8 @@ class MoodleClient {
         $allUsers = [];
         $seenIds = [];
         
-        // Intentar primero el método directo
-        try {
-            $users = $this->getAllUsers();
-            if (!empty($users)) {
-                LoggerService::info("getAllUsersBatched: Obtenidos " . count($users) . " usuarios en una consulta");
-                return $users;
-            }
-        } catch (\Exception $e) {
-            LoggerService::info("getAllUsersBatched: Método directo falló, intentando por iniciales", [
-                'error' => $e->getMessage()
-            ]);
-        }
-        
-        // Si falla, intentar por inicial de email (a%, b%, c%, etc.)
+        // Carga por lotes mediante iniciales de email (a%, b%, c%, etc.)
+        // Evita cargar todos los usuarios a la vez en memoria, previniendo timeout y mem_limit
         $initials = array_merge(
             range('a', 'z'),
             range('0', '9')
@@ -580,6 +689,12 @@ class MoodleClient {
         $processed = 0;
         
         foreach ($initials as $initial) {
+            // Verificar detención antes de cada llamada de red
+            if ($progressCallback && $progressCallback($processed, $total, count($allUsers)) === true) {
+                LoggerService::warning("getAllUsersBatched: Detención solicitada antes de procesar '$initial'");
+                throw new StopSyncException("Detenido por el usuario");
+            }
+
             try {
                 $result = $this->call(MoodleWS::FUNCTIONS['GET_USERS'], [
                     'criteria' => [
@@ -601,9 +716,16 @@ class MoodleClient {
                 
                 $processed++;
                 if ($progressCallback) {
-                    $progressCallback($processed, $total, count($allUsers));
+                    $shouldStop = $progressCallback($processed, $total, count($allUsers));
+                    if ($shouldStop === true) {
+                        LoggerService::warning("getAllUsersBatched: Detención solicitada por el usuario");
+                        throw new StopSyncException("Detenido por el usuario");
+                    }
                 }
                 
+            } catch (StopSyncException $e) {
+                // Propagar inmediatamente — no tragar la señal de stop
+                throw $e;
             } catch (\Exception $e) {
                 LoggerService::warning("getAllUsersBatched: Error con inicial '$initial'", [
                     'error' => $e->getMessage()

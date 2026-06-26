@@ -42,41 +42,53 @@ class CategorySyncService extends MoodleBaseSyncService {
 
         try {
             // 1. Consolidar Facultades (Depth 3)
-            $sqlFac = "INSERT INTO facultades (id_moodle_categoria, nombre)
-                       SELECT MIN(id), name FROM raw_moodle_categorias 
-                       WHERE depth = 3 GROUP BY name
-                       ON DUPLICATE KEY UPDATE nombre = VALUES(nombre)";
-            $this->db->exec($sqlFac);
-            $mappingStats['facultades'] = $this->db->query("SELECT COUNT(*) FROM facultades")->fetchColumn();
+            try {
+                $sqlFac = "INSERT INTO facultades (id_moodle_categoria, nombre)
+                           SELECT MIN(id), name FROM raw_moodle_categorias 
+                           WHERE depth = 3 GROUP BY name
+                           ON DUPLICATE KEY UPDATE nombre = VALUES(nombre)";
+                $this->db->exec($sqlFac);
+                $mappingStats['facultades'] = $this->db->query("SELECT COUNT(*) FROM facultades")->fetchColumn();
+            } catch (\Exception $e) {
+                LoggerService::error("Error mapeando facultades", ['error' => $e->getMessage()]);
+            }
 
             // 2. Consolidar Carreras (Depth 4) y vincular a Facultades locales
-            $sqlCar = "INSERT INTO carreras (id_moodle_categoria, nombre, facultad_id)
-                       SELECT MIN(rc.id), rc.name, f.id
-                       FROM raw_moodle_categorias rc
-                       JOIN raw_moodle_categorias rcf ON rc.parent_id = rcf.id
-                       JOIN facultades f ON rcf.name = f.nombre
-                       WHERE rc.depth = 4
-                       GROUP BY rc.name, f.id
-                       ON DUPLICATE KEY UPDATE nombre = VALUES(nombre), facultad_id = VALUES(facultad_id)";
-            $this->db->exec($sqlCar);
-            $mappingStats['carreras'] = $this->db->query("SELECT COUNT(*) FROM carreras")->fetchColumn();
+            try {
+                $sqlCar = "INSERT INTO carreras (id_moodle_categoria, nombre, facultad_id)
+                           SELECT MIN(rc.id), rc.name, f.id
+                           FROM raw_moodle_categorias rc
+                           JOIN raw_moodle_categorias rcf ON rc.parent_id = rcf.id
+                           JOIN facultades f ON rcf.name = f.nombre
+                           WHERE rc.depth = 4
+                           GROUP BY rc.name, f.id
+                           ON DUPLICATE KEY UPDATE nombre = VALUES(nombre), facultad_id = VALUES(facultad_id)";
+                $this->db->exec($sqlCar);
+                $mappingStats['carreras'] = $this->db->query("SELECT COUNT(*) FROM carreras")->fetchColumn();
+            } catch (\Exception $e) {
+                LoggerService::error("Error mapeando carreras", ['error' => $e->getMessage()]);
+            }
 
             // 3. Mapeo Automático de Cursos mediante Path Analysis
-            $sqlCursos = "UPDATE cursos c
-                          JOIN raw_moodle_categorias rc ON c.id_categoria_moodle = rc.id
-                          JOIN (
-                              SELECT rc_c.id, rc_c.name 
-                              FROM raw_moodle_categorias rc_c 
-                              WHERE rc_c.depth = 4
-                          ) as cat_mapped ON (rc.path LIKE CONCAT('%/', cat_mapped.id, '/%') 
-                                              OR rc.path LIKE CONCAT('%/', cat_mapped.id))
-                          JOIN carreras loc_c ON cat_mapped.name = loc_c.nombre
-                          SET c.carrera_id = loc_c.id
-                          WHERE c.carrera_id IS NULL OR c.carrera_id != loc_c.id";
-            
-            $stmt = $this->db->prepare($sqlCursos);
-            $stmt->execute();
-            $mappingStats['cursos_mapeados'] = $stmt->rowCount();
+            try {
+                $sqlCursos = "UPDATE cursos c
+                              JOIN raw_moodle_categorias rc ON c.id_categoria_moodle = rc.id
+                              JOIN (
+                                  SELECT rc_c.id, rc_c.name 
+                                  FROM raw_moodle_categorias rc_c 
+                                  WHERE rc_c.depth = 4
+                              ) as cat_mapped ON (rc.path LIKE CONCAT('%/', cat_mapped.id, '/%') 
+                                                  OR rc.path LIKE CONCAT('%/', cat_mapped.id))
+                              JOIN carreras loc_c ON cat_mapped.name = loc_c.nombre
+                              SET c.carrera_id = loc_c.id
+                              WHERE c.carrera_id IS NULL OR c.carrera_id != loc_c.id";
+                
+                $stmt = $this->db->prepare($sqlCursos);
+                $stmt->execute();
+                $mappingStats['cursos_mapeados'] = $stmt->rowCount();
+            } catch (\Exception $e) {
+                LoggerService::error("Error mapeando cursos automáticos", ['error' => $e->getMessage()]);
+            }
 
             LoggerService::info("Mapeo académico automático finalizado", $mappingStats);
             return $mappingStats;

@@ -158,6 +158,28 @@ PREPARE stmt FROM @sql;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
+-- usuarios: índice compuesto para búsquedas por Moodle ID y estado de suspensión
+SET @sql = (SELECT IF(
+    (SELECT COUNT(*) FROM information_schema.STATISTICS 
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'usuarios' AND INDEX_NAME = 'idx_usuarios_id_moodle_suspended') = 0,
+    'CREATE INDEX idx_usuarios_id_moodle_suspended ON usuarios (id_moodle, suspended)',
+    'SELECT 1'
+));
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- cohortes: índice compuesto para sincronización de cohortes activas
+SET @sql = (SELECT IF(
+    (SELECT COUNT(*) FROM information_schema.STATISTICS 
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'cohortes' AND INDEX_NAME = 'idx_cohortes_id_moodle_visible') = 0,
+    'CREATE INDEX idx_cohortes_id_moodle_visible ON cohortes (id_moodle, visible)',
+    'SELECT 1'
+));
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
 -- calificaciones: índice para upsert
 SET @sql = (SELECT IF(
     (SELECT COUNT(*) FROM information_schema.STATISTICS 

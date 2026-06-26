@@ -9,7 +9,7 @@ class MoodleException extends Exception {
     
     protected $moodleContext;
 
-    public function __construct(string $message, int $code = 0, array $context = [], ?Exception $previous = null) {
+    public function __construct(string $message, int $code = 0, array $context = [], ?\Throwable $previous = null) {
         parent::__construct($message, $code, $previous);
         $this->moodleContext = $context;
     }
